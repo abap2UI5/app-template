@@ -1,0 +1,4 @@
+node_modules/
+.abap2UI5/
+*.log
+screenshots/

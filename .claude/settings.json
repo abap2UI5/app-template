@@ -1,9 +1,11 @@
 {
   "permissions": {
     "allow": [
+      "Bash(npm run:*)",
       "Bash(npx --yes @abaplint/cli@latest abaplint.jsonc)",
       "Bash(npx abaplint:*)",
-      "Bash(npx --yes github:abap2UI5/abap2UI5-linter:*)",
+      "Bash(npx --yes github:abap2UI5/linter:*)",
+      "Bash(node scripts/check-sidecars.mjs)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",

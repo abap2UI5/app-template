@@ -1,8 +1,9 @@
-# The two gates every abap2UI5 app repo gets for free:
-#   abaplint  - syntax + style against the abap2UI5 framework dependency
-#   linter    - abap2UI5-linter: control/property/version checks against the
-#               UI5 metadata snapshot plus a headless XMLView.create render
-#               of every built view (no SAP system needed)
+# The gates every abap2UI5 app repo gets for free:
+#   abaplint     - syntax + style against the abap2UI5 framework dependency
+#   view_lint    - abap2UI5-linter: control/property/version checks against the
+#                  UI5 metadata snapshot plus a headless XMLView.create render
+#                  of every built view (no SAP system needed)
+#   repo_hygiene - .clas.xml sidecar consistency + AGENTS.md mirror freshness
 name: check
 
 on:
@@ -36,4 +37,29 @@ jobs:
       - uses: actions/checkout@v4
       # settings come from abap2ui5lint.jsonc - set inputs here only to override
       - name: abap2UI5-linter (property gate + headless render)
-        uses: abap2UI5/abap2UI5-linter@main
+        uses: abap2UI5/linter@main
+
+  repo_hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: sidecar consistency (.clas.xml matches .clas.abap)
+        run: node scripts/check-sidecars.mjs
+      - name: AGENTS.md mirror freshness (against upstream building-apps.md)
+        run: |
+          curl -fsSL -o /tmp/upstream.md \
+            https://raw.githubusercontent.com/abap2UI5/abap2UI5/main/docs/agents/building-apps.md
+          marker='## 1. The model in one paragraph'
+          awk -v m="$marker" '$0 == m { f = 1 } f' AGENTS.md        > /tmp/mirrored.md
+          awk -v m="$marker" '$0 == m { f = 1 } f' /tmp/upstream.md > /tmp/expected.md
+          for f in /tmp/mirrored.md /tmp/expected.md; do
+            if ! [ -s "$f" ]; then
+              echo "::error::mirror marker '$marker' not found - the extraction is broken"
+              exit 1
+            fi
+          done
+          if ! diff -u /tmp/expected.md /tmp/mirrored.md; then
+            echo "::error file=AGENTS.md::The mirrored section of AGENTS.md is out of sync with docs/agents/building-apps.md in abap2UI5/abap2UI5. Re-sync it: replace everything from '$marker' to the end of AGENTS.md with that section of the upstream file (do not hand-edit the mirror)."
+            exit 1
+          fi

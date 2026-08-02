@@ -1,0 +1,14 @@
+{
+  "name": "abap2ui5-app-template",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Starter template for abap2UI5 apps - validation gates preconfigured",
+  "license": "MIT",
+  "scripts": {
+    "lint": "npx --yes @abaplint/cli@latest abaplint.jsonc",
+    "view-lint": "npx --yes github:abap2UI5/linter",
+    "view-lint:fast": "npx --yes github:abap2UI5/linter --no-render",
+    "check:sidecars": "node scripts/check-sidecars.mjs",
+    "check": "npm run lint && npm run view-lint && npm run check:sidecars"
+  }
+}

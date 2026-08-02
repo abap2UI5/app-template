@@ -12,22 +12,33 @@ with the validation gates preconfigured.
 | `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
 | `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
 | `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework from the URL in it for dependency resolution |
-| `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter) config (paths, UI5 floor, distribution, fail level) — CLI flags and action inputs override it |
-| `.github/workflows/check.yml` | CI: abaplint + [abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter) (property gate + headless render of every view) |
+| `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, fail level) — CLI flags and action inputs override it |
+| `.github/workflows/check.yml` | CI: abaplint + [abap2UI5-linter](https://github.com/abap2UI5/linter) (property gate + headless render of every view) + repo hygiene (sidecars, AGENTS.md mirror freshness) |
+| `package.json` | `npm run check` and the individual gate scripts (`lint`, `view-lint`, `view-lint:fast`, `check:sidecars`) |
+| `scripts/check-sidecars.mjs` | Verifies every `.clas.abap` has a `.clas.xml` sidecar with matching `CLSNAME` and a UTF-8 BOM |
 
 ## Build & verify — run before every commit
 
 ```bash
-npx --yes @abaplint/cli@latest abaplint.jsonc                # expect 0 issues
-npx --yes github:abap2UI5/abap2UI5-linter                    # property + render gate
-npx --yes github:abap2UI5/abap2UI5-linter --no-render        # fast loop, no browser
+npm run check           # all gates: abaplint + view linter + sidecar check
+npm run view-lint:fast  # fast inner loop — view linter without the render
+```
+
+The scripts wrap these direct commands (usable without `npm`):
+
+```bash
+npx --yes @abaplint/cli@latest abaplint.jsonc     # npm run lint — expect 0 issues
+npx --yes github:abap2UI5/linter                  # npm run view-lint — property + render gate
+npx --yes github:abap2UI5/linter --no-render      # npm run view-lint:fast
+node scripts/check-sidecars.mjs                   # npm run check:sidecars
 # settings (paths, UI5 floor, fail level) come from abap2ui5lint.jsonc
 ```
 
-Both run offline from any SAP system (the first call clones dependencies, so
-it needs network). CI runs the same two gates — a local green run means CI
-passes. Deploy to a system via [abapGit](https://abapgit.org/) and start an
-app with `<icf-endpoint>?app_start=zcl_app_001`.
+All gates run offline from any SAP system (the first call clones
+dependencies, so it needs network). CI runs the same gates — a local green
+`npm run check` means CI passes. Deploy to a system via
+[abapGit](https://abapgit.org/) and start an app with
+`<icf-endpoint>?app_start=zcl_app_001`.
 
 Conventions: every `.clas.abap` needs its `.clas.xml` sidecar (UTF-8 **with
 BOM**, LF endings — copy an existing one); class names stay in `ZCL_*`; the
@@ -197,7 +208,9 @@ ships for existing apps but is **frozen** — new apps and new code use
 - `client->_bind( var )` binds a PUBLIC attribute **two-way**: the value
   renders into the view, and user input is written back into the attribute
   before your event handler runs. Use it for everything, display-only
-  included (`_bind_edit` is an obsolete alias — do not use it in new code).
+  included (`_bind_edit` is an obsolete alias — do not use it in new code,
+  EXCEPT when passing `custom_mapper_back`/`custom_filter_back`, which
+  `_bind` lacks).
 - Inside a bound aggregation (a table/list template), child properties bind
   **relative to the row** with braces on the upper-cased field name:
   `` `{PRODUCT}` ``. A camelCase ABAP field `supplierName` becomes
@@ -295,15 +308,15 @@ ships for existing apps but is **frozen** — new apps and new code use
   [abap2UI5/app-template](https://github.com/abap2UI5/app-template)** — it
   ships the starter app, abaplint + linter CI, this guide as its AGENTS.md
   and the agent permission setup preconfigured.
-- **[abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter)** checks
+- **[abap2UI5-linter](https://github.com/abap2UI5/linter)** checks
   app classes statically (unknown/deprecated/too-new controls and members,
   binding mistakes, builder-tree defects) and can render the view headless:
-  `npx --yes github:abap2UI5/abap2UI5-linter my_app.clas.abap` — also
+  `npx --yes github:abap2UI5/linter my_app.clas.abap` — also
   available as a GitHub Action and inside the VS Code extension.
 - **[ai-mcp](https://github.com/abap2UI5/ai-mcp)** gives MCP-capable agents
   the full loop without a SAP system: `capabilities` → `deploy_app` →
   `build_backend` → `run_app` (headless screenshot + errors).
-- **[vscode-extension](https://github.com/abap2UI5-addons/vscode-extension)**:
+- **[vscode-extension](https://github.com/abap2UI5/vscode-extension)**:
   F9 launches the class in an embedded preview against a real system.
 - **Worked examples**: ~280 gate-verified sample apps in
   [ai-demokit](https://github.com/abap2UI5/ai-demokit) (`src/`), curated
