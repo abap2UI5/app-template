@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --yes @abaplint/cli@latest abaplint.jsonc)",
+      "Bash(npx abaplint:*)",
+      "Bash(npx --yes github:abap2UI5/abap2UI5-linter:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)"
+    ]
+  }
+}
