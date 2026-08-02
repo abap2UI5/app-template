@@ -36,9 +36,10 @@ AI agents.
 ## Validate locally
 
 ```bash
-npx --yes @abaplint/cli@latest abaplint.jsonc              # 0 issues expected
-npx --yes github:abap2UI5/abap2UI5-linter src              # view gates + render
-npx --yes github:abap2UI5/abap2UI5-linter src --no-render  # fast, no browser
+npx --yes @abaplint/cli@latest abaplint.jsonc            # 0 issues expected
+npx --yes github:abap2UI5/abap2UI5-linter                # view gates + render
+npx --yes github:abap2UI5/abap2UI5-linter --no-render    # fast, no browser
+# settings (paths, UI5 floor, fail level) live in abap2ui5lint.jsonc
 ```
 
 ## Iterate without a SAP system

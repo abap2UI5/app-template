@@ -11,15 +11,17 @@ with the validation gates preconfigured.
 | --- | --- |
 | `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
 | `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
-| `abaplint.jsonc` | Lint config; abaplint clones the abap2UI5 framework from the URL in it for dependency resolution |
+| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework from the URL in it for dependency resolution |
+| `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter) config (paths, UI5 floor, distribution, fail level) — CLI flags and action inputs override it |
 | `.github/workflows/check.yml` | CI: abaplint + [abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter) (property gate + headless render of every view) |
 
 ## Build & verify — run before every commit
 
 ```bash
-npx --yes @abaplint/cli@latest abaplint.jsonc                  # expect 0 issues
-npx --yes github:abap2UI5/abap2UI5-linter src                  # property + render gate
-npx --yes github:abap2UI5/abap2UI5-linter src --no-render      # fast loop, no browser
+npx --yes @abaplint/cli@latest abaplint.jsonc                # expect 0 issues
+npx --yes github:abap2UI5/abap2UI5-linter                    # property + render gate
+npx --yes github:abap2UI5/abap2UI5-linter --no-render        # fast loop, no browser
+# settings (paths, UI5 floor, fail level) come from abap2ui5lint.jsonc
 ```
 
 Both run offline from any SAP system (the first call clones dependencies, so
@@ -82,6 +84,8 @@ CLASS zcl_my_app IMPLEMENTATION.
       view_display( ).
     ELSEIF client->check_on_event( ).
       on_event( ).
+    ELSEIF client->check_on_navigated( ).
+      view_display( ).
     ENDIF.
 
   ENDMETHOD.
@@ -142,9 +146,12 @@ ENDCLASS.
 Conventions that keep apps uniform (proven in the ai-demokit corpus):
 `main` is a pure dispatcher; methods follow in call order with `model_init`
 last; add `model_init`/`on_event` only when the app has data/events; always
-dispatch events with `CASE client->get( )-event.` even for a single event; a
-`check_on_navigated( )` `ELSEIF` branch re-runs `view_display` when the user
-navigates back to the app.
+dispatch events with `CASE client->get( )-event.` even for a single event.
+**The `check_on_navigated( )` branch is part of the canonical dispatcher, not
+an option**: without it the view is only ever built on `check_on_init`, so
+navigating away (`nav_app_call`) and back leaves the app blank — the
+framework fires `check_on_navigated`, nothing re-displays. Always re-run
+`view_display( )` there.
 
 ## 3. The view builder — `z2ui5_cl_ai_xml`
 
@@ -274,6 +281,10 @@ ships for existing apps but is **frozen** — new apps and new code use
 
 ## 9. Validate and iterate like the framework does
 
+- **Starting a new app repo? Use
+  [abap2UI5/app-template](https://github.com/abap2UI5/app-template)** — it
+  ships the starter app, abaplint + linter CI, this guide as its AGENTS.md
+  and the agent permission setup preconfigured.
 - **[abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter)** checks
   app classes statically (unknown/deprecated/too-new controls and members,
   binding mistakes, builder-tree defects) and can render the view headless:

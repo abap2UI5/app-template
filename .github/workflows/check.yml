@@ -34,9 +34,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      # settings come from abap2ui5lint.jsonc - set inputs here only to override
       - name: abap2UI5-linter (property gate + headless render)
         uses: abap2UI5/abap2UI5-linter@main
-        with:
-          paths: src
-          min-ui5: '1.71'
-          fail-on: warning

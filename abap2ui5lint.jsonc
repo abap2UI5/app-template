@@ -1,0 +1,8 @@
+{
+  // abap2UI5-linter settings for this repo (CLI flag > this file > defaults)
+  // docs: https://github.com/abap2UI5/abap2UI5-linter#configuration-file--abap2ui5lintjsonc
+  "paths": ["src"],
+  "ui5": "1.71",             // raise this to the UI5 version your system runs
+  "distribution": "sapui5",  // "openui5" reports SAPUI5-only controls too
+  "failOn": "warning"
+}

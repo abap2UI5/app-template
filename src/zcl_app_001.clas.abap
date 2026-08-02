@@ -30,6 +30,8 @@ CLASS zcl_app_001 IMPLEMENTATION.
       view_display( ).
     ELSEIF client->check_on_event( ).
       on_event( ).
+    ELSEIF client->check_on_navigated( ).
+      view_display( ).
     ENDIF.
 
   ENDMETHOD.
