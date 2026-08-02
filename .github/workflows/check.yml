@@ -1,0 +1,39 @@
+# The two gates every abap2UI5 app repo gets for free:
+#   abaplint  - syntax + style against the abap2UI5 framework dependency
+#   linter    - abap2UI5-linter: control/property/version checks against the
+#               UI5 metadata snapshot plus a headless XMLView.create render
+#               of every built view (no SAP system needed)
+name: check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  abaplint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: abaplint (expect 0 issues)
+        run: npx --yes @abaplint/cli@latest abaplint.jsonc
+
+  view_lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # settings come from abap2ui5lint.jsonc - set inputs here only to override
+      - name: abap2UI5-linter (property gate + headless render)
+        uses: abap2UI5/abap2UI5-linter@main
