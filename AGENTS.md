@@ -36,6 +36,15 @@ whole repo is in English.
 The rest of this file is the complete app-building reference — read it before
 writing or changing any app class.
 
+> **Provenance:** everything from "1. The model in one paragraph" down is a
+> mirror of `docs/agents/building-apps.md` in
+> [abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5) — the copy exists
+> so this repo needs no framework checkout. **Do not edit it here**: fix it
+> upstream (a CI gate there checks it against the real client API) and copy
+> the section back. In your own project you may of course extend this file
+> with your app's own rules — put those ABOVE this line so a re-sync never
+> overwrites them.
+
 ## 1. The model in one paragraph
 
 An abap2UI5 app is **one ABAP class** implementing `z2ui5_if_app`. The
