@@ -38,45 +38,34 @@ CLASS zcl_app_001 IMPLEMENTATION.
 
   METHOD view_display.
 
-    DATA(view) = z2ui5_cl_ai_xml=>factory( ).
+    DATA(view) = z2ui5_cl_ui5_view_builder=>factory( ).
 
-    view->open( n  = `View`
-                ns = `mvc`
-        )->a( n = `xmlns`
-              v = `sap.m`
-        )->a( n = `xmlns:mvc`
-              v = `sap.ui.core.mvc`
-        )->a( n = `displayBlock`
-              v = `true`
-        )->a( n = `height`
-              v = `100%`
+    view->ele( n  = `View`
+               ns = `mvc`
+        )->a( n = `xmlns`        v = `sap.m`
+        )->a( n = `xmlns:mvc`    v = `sap.ui.core.mvc`
+        )->a( n = `displayBlock` v = `true`
+        )->a( n = `height`       v = `100%`
 
-        )->open( `Page`
-            )->a( n = `title`
-                  v = `My abap2UI5 App`
+        )->ele( `Page`
+            )->a( n = `title` v = `My abap2UI5 App`
 
-            )->leaf( `Input`
-                )->a( n = `value`
-                      v = client->_bind( name )
+            )->tag( `Input`
+                )->a( n = `value` v = client->_bind( name )
 
-            )->open( `List`
-                )->a( n = `items`
-                      v = client->_bind( t_items )
-                )->open( `items`
-                    )->leaf( `StandardListItem`
-                        )->a( n = `title`
-                              v = `{PRODUCT}`
-                        )->a( n = `info`
-                              v = `{QUANTITY}`
+            )->ele( `List`
+                )->a( n = `items` v = client->_bind( t_items )
 
-                )->shut(
-            )->shut(
+                )->ele( `items`
+                    )->tag( `StandardListItem`
+                        )->a( n = `title` v = `{PRODUCT}`
+                        )->a( n = `info`  v = `{QUANTITY}`
+                )->end(
+            )->end(
 
-            )->leaf( `Button`
-                )->a( n = `text`
-                      v = `Save`
-                )->a( n = `press`
-                      v = client->_event( `SAVE` ) ).
+            )->tag( `Button`
+                )->a( n = `text`  v = `Save`
+                )->a( n = `press` v = client->_event( `SAVE` ) ).
 
     client->view_display( view->stringify( ) ).
 
@@ -86,9 +75,10 @@ CLASS zcl_app_001 IMPLEMENTATION.
 
     CASE client->get( )-event.
       WHEN `SAVE`.
-        " bound data (name, t_items) already carries the user's input here
+        " bound data (name, t_items) already carries the user's input here,
+        " and a roundtrip that changed it pushes the model by itself - there
+        " is no view_model_update( ) to call
         client->message_toast_display( |Saved, { name }| ).
-        client->view_model_update( ).
     ENDCASE.
 
   ENDMETHOD.

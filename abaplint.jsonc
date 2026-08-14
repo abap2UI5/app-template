@@ -5,7 +5,7 @@
   "dependencies": [
     {
       // the abap2UI5 framework this app runs on - cloned by abaplint for
-      // dependency resolution (z2ui5_if_app, z2ui5_if_client, z2ui5_cl_ai_xml)
+      // dependency resolution (z2ui5_if_app, z2ui5_if_client, z2ui5_cl_ui5_view_builder)
       "url": "https://github.com/abap2UI5/abap2UI5",
       "files": "/src/**/*.*"
     }
