@@ -19,7 +19,20 @@
   // "sapui5" allows the libraries only SAPUI5 ships (sap.ui.comp, sap.suite.*,
   // sap.ushell, sap.fe). Switch to "openui5" if your system serves OpenUI5 -
   // those controls then become errors instead of silently breaking at runtime.
+  // (abap2UI5 itself checks against "openui5": the framework has to run on
+  // both, so it holds itself to the smaller set. An app on one known system
+  // does not have to.)
   "distribution": "sapui5",
+
+  // Load every view in a headless browser and see whether UI5 accepts it -
+  // the check no static rule can make. Saying so here rather than leaving it
+  // to the default is what makes it a REQUIREMENT: an unasked-for render gate
+  // steps aside with a warning when @abap2ui5/render-runtime is missing and
+  // the run stays green, which is how a gate quietly stops meaning anything.
+  // Asked for, a missing runtime fails the run instead. Use
+  // `npm run check:abap2ui5:fast` for the quick property-only pass while
+  // writing; CI and `npm run check` take the full one.
+  "render": true,
 
   "rules": {
     // The chain's indentation is the only picture of the view tree there is,
