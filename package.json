@@ -8,7 +8,8 @@
     "check:abap": "abaplint abaplint.jsonc",
     "check:abap2ui5": "abap2ui5lint",
     "check:abap2ui5:fast": "abap2ui5lint --no-render",
-    "fix": "abap2ui5lint --fix"
+    "fix": "abap2ui5lint --fix",
+    "rename": "node scripts/rename.mjs"
   },
   "license": "MIT",
   "devDependencies": {

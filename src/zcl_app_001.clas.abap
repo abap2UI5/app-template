@@ -38,35 +38,44 @@ CLASS zcl_app_001 IMPLEMENTATION.
 
   METHOD view_display.
 
+    " the root: mvc:View with its namespace declarations, written by hand the
+    " way a real UI5 view is
     DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n  = `View`
                 ns = `mvc`
             )->a( n = `xmlns`        v = `sap.m`
             )->a( n = `xmlns:mvc`    v = `sap.ui.core.mvc`
             )->a( n = `displayBlock` v = `true`
-            )->a( n = `height`       v = `100%`
+            )->a( n = `height`       v = `100%` ).
 
-            )->ele( `Page`
-                )->a( n = `title` v = `My abap2UI5 App`
+    " Shell gives the app the SAP frame; the nav button appears only when this
+    " app was opened from another one, and hands control back to it
+    DATA(page) = view->ele( `Shell`
+        )->ele( `Page`
+            )->a( n = `title`          v = `My abap2UI5 App`
+            )->a( n = `showNavButton`  b = client->check_app_prev_stack( )
+            )->a( n = `navButtonPress` v = client->_event_nav_app_leave( ) ).
 
-                )->tag( `Input`
-                    )->a( n = `value` v = client->_bind( name )
+    " come back to the page through the variable rather than through a run of
+    " end( )s - it stays readable when the view grows
+    page->tag( `Input`
+        )->a( n = `value`       v = client->_bind( name )
+        )->a( n = `placeholder` v = `Your name` ).
 
-                )->ele( `List`
-                    )->a( n = `items` v = client->_bind( t_items )
+    page->ele( `List`
+        )->a( n = `items` v = client->_bind( t_items )
 
-                    )->ele( `items`
+        )->ele( `items`
 
-                        )->tag( `StandardListItem`
-                            )->a( n = `title` v = `{PRODUCT}`
-                            )->a( n = `info`  v = `{QUANTITY}`
+            )->tag( `StandardListItem`
+                )->a( n = `title`       v = `{PRODUCT}`
+                " description sits under the title; info would right-align it
+                " against the far edge of the row
+                )->a( n = `description` v = `{QUANTITY}` ).
 
-                    )->end(
-                )->end(
-
-                )->tag( `Button`
-                    )->a( n = `text`  v = `Save`
-                    )->a( n = `press` v = client->_event( `SAVE` ) ).
+    page->tag( `Button`
+        )->a( n = `text`  v = `Save`
+        )->a( n = `press` v = client->_event( `SAVE` ) ).
 
     client->view_display( view->stringify( ) ).
 
