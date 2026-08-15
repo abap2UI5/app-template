@@ -1,5 +1,8 @@
 *.abap text eol=lf
 *.xml text eol=lf
+*.json text eol=lf
 *.jsonc text eol=lf
 *.md text eol=lf
 *.yml text eol=lf
+
+package-lock.json linguist-generated=true

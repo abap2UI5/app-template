@@ -11,23 +11,37 @@ with the validation gates preconfigured.
 | --- | --- |
 | `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
 | `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
+| `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
 | `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework from the URL in it for dependency resolution |
-| `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter) config (paths, UI5 floor, distribution, fail level) — CLI flags and action inputs override it |
-| `.github/workflows/check.yml` | CI: abaplint + [abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter) (property gate + headless render of every view) |
+| `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
+| `.github/workflows/check.yml` | CI: abaplint + abap2UI5-linter (static gate + headless render of every view) |
 
 ## Build & verify — run before every commit
 
 ```bash
-npx --yes @abaplint/cli@latest abaplint.jsonc                # expect 0 issues
-npx --yes github:abap2UI5/abap2UI5-linter                    # property + render gate
-npx --yes github:abap2UI5/abap2UI5-linter --no-render        # fast loop, no browser
-# settings (paths, UI5 floor, fail level) come from abap2ui5lint.jsonc
+npm ci                          # once - installs both gates
+npx playwright install chromium # once - only the render gate needs a browser
+
+npm run check                   # abaplint + linter, expect 0 issues
+npm run check:abap2ui5:fast     # fast loop: linter without the render gate
+npm run fix                     # apply the linter's mechanical corrections
 ```
 
-Both run offline from any SAP system (the first call clones dependencies, so
-it needs network). CI runs the same two gates — a local green run means CI
-passes. Deploy to a system via [abapGit](https://abapgit.org/) and start an
-app with `<icf-endpoint>?app_start=zcl_app_001`.
+Where the mirrored guide below names the framework repo's own scripts
+(`npm run check:abap2ui5`, `npm run fmt:chains`), the equivalents here are
+`npm run check:abap2ui5` and `npm run fix`.
+
+Both gates run offline from any SAP system (abaplint clones the framework on
+first use, so it needs network). CI runs exactly these versions — a local
+green run means CI passes. Deploy to a system via
+[abapGit](https://abapgit.org/) and start an app with
+`<icf-endpoint>?app_start=zcl_app_001`.
+
+While writing, the
+[VS Code extension](https://github.com/abap2UI5/vscode-extension) surfaces the
+same linter findings as editor diagnostics with quick fixes, and
+[ai-mcp](https://github.com/abap2UI5/ai-mcp) gives an MCP-capable agent the
+deploy → build → run-headless-and-screenshot loop.
 
 Conventions: every `.clas.abap` needs its `.clas.xml` sidecar (UTF-8 **with
 BOM**, LF endings — copy an existing one); class names stay in `ZCL_*`; the
@@ -209,12 +223,42 @@ below are the ones the sample repositories are ported and reviewed against;
 `align_parameters` / `line_break_multiple_parameters` so the auto-formatter
 does not undo them.
 
-- **The chain hangs off the `factory( )` — one statement, not two.** Write
-  `` DATA(view) = z2ui5_cl_ui5_view_builder=>factory( )->ele( n = `View` … ) ``,
-  never a `factory( ).` of its own followed by a second statement starting
-  `view->ele( … )`. The variable then holds wherever the chain stopped, which
-  costs nothing: `stringify( )` renders from the root. Same for a popup or a
-  fragment.
+**They are machine-checked.** The abap2UI5-linter's `chain-house-layout` rule
+checks one call per line, four spaces per level and the closing call's column;
+`npm run check:abap2ui5` reports and `npm run fmt:chains` applies. It rewrites
+whitespace *between* chain segments only and verifies that collapsing every run
+of code-whitespace leaves the file identical, so a layout fix can never change
+what the view builds. The blank-line rules below stay reviewer-enforced.
+
+The rule is **opt-in** in the linter, because it encodes one house style — this
+one — and is named in `abap2ui5lint.jsonc` rather than inherited. It is what
+the linter's two older layout rules cannot reach: they judge a chain against
+ITSELF, so a chain whose every level is uniformly wrong keeps its own rhythm
+and passes.
+
+- **The `factory( )` shape follows the chain shape, and there are two.** The
+  variable has to denote the node you will attach to next:
+  - **A view split into a statement per subtree** (the shape of the apps here
+    and of `abap2UI5/samples`) hangs the chain off the `factory( )` — one
+    statement, not two — so the variable holds the `mvc:View` and a later
+    `view->ele( `Shell` … )` lands inside it:
+
+    ```abap
+    DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
+        )->ele( n = `View` ns = `mvc`
+            )->a( n = `xmlns`     v = `sap.m`
+            )->a( n = `xmlns:mvc` v = `sap.ui.core.mvc` ).
+    ```
+  - **A view built as one chain** (the shape of `abap2UI5/samples-controls`,
+    where a 1:1 port mirrors one original XML file) may take the `factory( ).`
+    as a statement of its own, because nothing attaches to the variable
+    afterwards — `stringify( )` renders from the root either way. It buys two
+    levels of indent back across the whole view, which is worth having in a
+    deeply nested one.
+
+  What is never right is the standalone `factory( ).` *with* the split shape:
+  the variable then holds the root, and `view->ele( `Shell` )` adds a second
+  root next to the `mvc:View` instead of a child inside it.
 - **The closing paren rides with the arrow.** Never leave a `)` alone at the
   end of a line — carry it to the **start of the next segment**, so every
   continuation reads `)->`. With the `a( )` chain there is no nested `VALUE`,
@@ -222,6 +266,34 @@ does not undo them.
 - **Indent after every `ele`.** Each `ele( )` shifts its children's `)->`
   one level (4 spaces) to the right, `end( )` shifts back left, and the `)->`
   of an `end` sits in the same column as the `ele` it closes.
+- **The indent *states* the depth — 4 spaces, never 2.** The column a line
+  starts in is the only place the reader can see where in the tree they are,
+  so it has to be true: same depth, same column; one level deeper, exactly
+  four more. A step of two, or a line that changes depth and leaves the next
+  line in the old column, and the layout is no longer describing the XML — it
+  is decorating it.
+- **One call per line — no exceptions.** Every `ele( )`, `tag( )`, `a( )` and
+  `end( )` opens its own line with `)->`. A control does not share its line
+  with its own attributes (`` )->tag( `Label` )->a( n = `text` … ``), and a
+  container does not hand straight over to the next
+  (`` view->ele( `Shell` )->ele( `Page` ``). Both used to be allowed here as
+  "they hide nothing", and both were dropped when the two sample corpora were
+  unified: the exception is what the worst shape grows out of.
+  `` )->end( )->end( )->ele( `footer` )->ele( `OverflowToolbar` `` at the end
+  of an attribute line — up two, down two — is four level changes nobody can
+  follow, after which every line starts in a column that means nothing. With
+  one call per line there is no line for it to hide on. This is also the
+  abap2UI5-linter's `chain-element-per-line`.
+- **Come back to a node through a variable, not through a run of `end( )`s.**
+  `end( )` is for closing what you are finished with, one level, at the start
+  of its own line. When you need a node *again* — a page you hang three
+  sections off, a `footer` beside a form — keep it: `` DATA(page) =
+  view->ele( `Shell` )->ele( `Page` … ) ``, then `page->ele( … )` per subtree,
+  each its own statement, each starting at the method's indent. Every app in
+  the framework and in `abap2UI5/samples` is built this way, and it is what
+  keeps the rule above satisfiable: a statement that never unwinds can indent
+  monotonically. A subtree deep enough that its lines drift past the
+  right-hand side of the screen is telling you the same thing — split it.
 - **A control's `a( )` lines sit one level (4 spaces) in from the control's
   own `)->` line** — one attribute per line, `v =` column aligned across the
   block.
@@ -271,6 +343,69 @@ The blank above `Title` is what makes the three fields read as the form's
 content rather than as a continuation of the `content` aggregation; the
 missing blanks between them are what keep the three together. Blanks in both
 places, or in neither, and the same view reads as a pile of fragments.
+
+**Do not expect a gate to catch this for you.** abaplint's formatting rules
+are deliberately kept off the app chains (`align_parameters` and
+`line_break_multiple_parameters` are excluded in
+`.github/abaplint/auto_abaplint_fix.jsonc`, `indentation` is off — they would
+flatten exactly the layout this section builds). The abap2UI5-linter does
+judge it, with two rules — `chain-indentation` (a sibling in a different
+column than its siblings, a call written left of the element it belongs to;
+the step *size* is not judged, only that a chain keeps its own rhythm) and
+`chain-element-per-line` (several controls on one line; attributes may share
+their control's line, and so may the container it opens) — **but both ship as
+`hint`, and a config with `failOn: warning` does not even print them.** In
+`abap2UI5/samples` they are muted twice over: 339 `chain-element-per-line`
+findings went into `abap2ui5lint-baseline.json` when the linter was adopted,
+one of them the `` view->ele( `Shell` )->ele( `Page` `` idiom that repository
+documents. So check the config of the repository you are in before you trust
+a green run — and either way, re-read the chain you just wrote against the
+example above.
+
+#### What a broken chain looks like
+
+From `abap2UI5/samples` `z2ui5_cl_smp_app_052`, after the port to this builder
+— lint-green, and unreadable:
+
+```abap
+    lo_popover->ele( `Popover`
+        )->a( n = `title`        v = |abap2UI5 - Popover - { mv_product }|
+        )->a( n = `contentWidth` v = `20rem` )->ele( n = `SimpleForm` ns = `form`
+          )->a( n = `layout`   v = `ColumnLayout`
+          )->a( n = `editable` b = abap_false )->ele( n = `content` ns = `form` )->tag( `Label`
+              )->a( n = `text` v = `Product` )->tag( `Text`
+              )->a( n = `text` v = mv_product )->tag( `Text`
+              )->a( n = `text` v = `this is a text` )->end( )->end( )->ele( `footer` )->ele( `OverflowToolbar`
+              )->tag( `ToolbarSpacer` )->tag( `Button`
+                )->a( n = `press` v = client->_event( `BUTTON_DETAILS` ) ).
+```
+
+Three defects, and they compound: the indent steps by 2 and then by 4 and then
+stops moving at all; one line opens `content` *and* a `Label`; and the
+`` )->end( )->end( )->ele( `footer` )->ele( `OverflowToolbar` `` at the end of
+an attribute line leaves the `ToolbarSpacer` two levels away from where its
+column claims it is. Nothing here says `footer` is a sibling of `SimpleForm`.
+The same tree, with the subtree held in a variable:
+
+```abap
+    DATA(popover) = lo_popover->ele( `Popover`
+        )->a( n = `title`        v = |abap2UI5 - Popover - { mv_product }|
+        )->a( n = `contentWidth` v = `20rem` ).
+
+    popover->ele( n = `SimpleForm` ns = `form`
+        )->a( n = `layout`   v = `ColumnLayout`
+        )->a( n = `editable` b = abap_false
+        )->ele( n = `content` ns = `form`
+            )->tag( `Label` )->a( n = `text` v = `Product`
+            )->tag( `Text`  )->a( n = `text` v = mv_product
+            )->tag( `Text`  )->a( n = `text` v = `this is a text` ).
+
+    popover->ele( `footer` )->ele( `OverflowToolbar`
+        )->tag( `ToolbarSpacer`
+        )->tag( `Button`
+            )->a( n = `press` v = client->_event( `BUTTON_DETAILS` )
+            )->a( n = `text`  v = `details` ).
+```
 
 ## 4. Data binding
 
@@ -431,9 +566,9 @@ places, or in neither, and the same view reads as a pile of fragments.
   `main` and render an error/leave when denied.
 - The default UI5 bootstrap loads from the CDN; system-local hosting and
   CSP/theme/bootstrap customizing go through `z2ui5_if_exit` /
-  `z2ui5_cl_exit`.
+  `z2ui5_cl_ui5_user_exit`.
 - **A third-party JS library is a deployment decision, not a view trick.**
-  The default CSP in `z2ui5_cl_exit` already whitelists `cdn.jsdelivr.net`
+  The default CSP in `z2ui5_cl_ui5_user_exit` already whitelists `cdn.jsdelivr.net`
   and `cdnjs.cloudflare.com`, so a library loaded from one of them is
   allowed out of the box — anything else needs your own
   `content_security_policy` in the exit, and a system-local copy served by
@@ -460,7 +595,7 @@ places, or in neither, and the same view reads as a pile of fragments.
 - **[abap2UI5-linter](https://github.com/abap2UI5/linter)** checks
   app classes statically (unknown/deprecated/too-new controls and members,
   binding mistakes, builder-tree defects) and can render the view headless:
-  `npx --yes github:abap2UI5/linter my_app.clas.abap` — also
+  `npx --yes @abap2ui5/linter my_app.clas.abap` — also
   available as a GitHub Action and inside the VS Code extension.
 - **[ai-mcp](https://github.com/abap2UI5/ai-mcp)** gives MCP-capable agents
   the full loop without a SAP system: `capabilities` → `deploy_app` →
