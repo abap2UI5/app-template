@@ -1,0 +1,35 @@
+# Weekly dependency updates, opened as pull requests so the check workflow
+# decides whether they are safe.
+#
+# This file is part of the template on purpose. The two gates are pinned
+# through package-lock.json - `npm ci` reads the lock, so the version in it is
+# the version your CI and your `npm run check` actually run - and a pin that
+# nobody moves is a pin that silently ages out of the rules it was meant to
+# apply. This is the smallest thing that keeps it current: one grouped pull
+# request a week, with your own checks deciding.
+#
+# Change the day, widen the interval, or delete the file - it is yours now.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "06:30"
+    open-pull-requests-limit: 5
+    groups:
+      gates:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "06:30"
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
