@@ -1,0 +1,22 @@
+{
+  "name": "abap2ui5-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "abap2UI5 app project - the gates that check it without an SAP system.",
+  "scripts": {
+    "check": "npm run check:abap && npm run check:abap2ui5",
+    "check:abap": "abaplint abaplint.jsonc",
+    "check:abap2ui5": "abap2ui5lint",
+    "check:abap2ui5:fast": "abap2ui5lint --no-render",
+    "fix": "abap2ui5lint --fix"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@abap2ui5/linter": "^0.1.0",
+    "@abap2ui5/render-runtime": "^0.1.0",
+    "@abaplint/cli": "^2.119.66"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

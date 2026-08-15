@@ -1,8 +1,36 @@
 {
-  // abap2UI5-linter settings for this repo (CLI flag > this file > defaults)
-  // docs: https://github.com/abap2UI5/abap2UI5-linter#configuration-file--abap2ui5lintjsonc
+  // abap2UI5-linter settings for this repo. Precedence: CLI flag > this file
+  // > built-in default, and the GitHub Action defers to this file for every
+  // input it is not given. Full reference: https://github.com/abap2UI5/linter
+  // Every rule id has a page at https://abap2ui5.github.io/linter/
+  //
+  // The $schema line gives an editor (and the VS Code extension) completion
+  // and validation for every key and every rule id - it resolves after
+  // `npm ci`, from the linter version this repo pins in package-lock.json.
+  "$schema": "./node_modules/@abap2ui5/linter/data/abap2ui5lint.schema.json",
+
   "paths": ["src"],
-  "ui5": "1.71",             // raise this to the UI5 version your system runs
-  "distribution": "sapui5",  // "openui5" reports SAPUI5-only controls too
+
+  // The UI5 version your system serves. 1.71 is abap2UI5's own floor and the
+  // safe default: a control or property that arrived later is reported here
+  // instead of failing in the browser. Raise it once you know the system.
+  "ui5": "1.71",
+
+  // "sapui5" allows the libraries only SAPUI5 ships (sap.ui.comp, sap.suite.*,
+  // sap.ushell, sap.fe). Switch to "openui5" if your system serves OpenUI5 -
+  // those controls then become errors instead of silently breaking at runtime.
+  "distribution": "sapui5",
+
+  "rules": {
+    // The chain's indentation is the only picture of the view tree there is,
+    // and no other tool formats it (abaplint's `indentation` is deliberately
+    // off for builder chains). This rule is opt-in because it encodes one
+    // house style - the one AGENTS.md documents and abap2UI5, samples and
+    // samples-controls are written in - and `npm run fix` applies it.
+    // Drop the line if your project settles on a different layout.
+    "chain-house-layout": { "severity": "warning" }
+  },
+
+  // Lowest severity that fails the run: error | warning | hint | never.
   "failOn": "warning"
 }

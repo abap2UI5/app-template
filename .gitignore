@@ -1,0 +1,6 @@
+# the gates are npm devDependencies (package.json) - the lockfile is committed,
+# the installed tree is not
+node_modules/
+
+# the render gate's browser, when playwright is told to keep it in-project
+.playwright/

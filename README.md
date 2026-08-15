@@ -9,14 +9,15 @@ AI agents.
 ## What you get
 
 - **`src/zcl_app_001`** — a working starter app (input, bound table, event)
-  following the canonical template
+  following the canonical template of `AGENTS.md`
 - **abaplint** — syntax/style checks with the abap2UI5 framework resolved as
   a dependency, no SAP system needed
-- **[abap2UI5-linter](https://github.com/abap2UI5/abap2UI5-linter)** — checks
-  every built view statically (unknown/deprecated/too-new controls and
-  members, binding mistakes, builder-tree defects) and renders it headless
-  with a real `XMLView.create`
-- **CI** (`.github/workflows/check.yml`) running both gates on every push/PR
+- **[abap2UI5-linter](https://github.com/abap2UI5/linter)** — checks every
+  built view statically (unknown/deprecated/too-new controls and members,
+  binding mistakes, builder-tree defects, chain layout) and renders it
+  headless with a real `XMLView.create`
+- **CI** (`.github/workflows/check.yml`) running both gates on every push/PR —
+  the same versions `npm run check` runs locally, pinned in `package-lock.json`
 - **`AGENTS.md`** — the complete app-building reference for AI assistants,
   plus a `.claude/settings.json` permission allowlist so autonomous sessions
   run the gates without prompts
@@ -35,26 +36,44 @@ AI agents.
 
 ## Validate locally
 
+Both gates are npm devDependencies, so CI and your machine run the same
+versions:
+
 ```bash
-npx --yes @abaplint/cli@latest abaplint.jsonc            # 0 issues expected
-npx --yes github:abap2UI5/abap2UI5-linter                # view gates + render
-npx --yes github:abap2UI5/abap2UI5-linter --no-render    # fast, no browser
-# settings (paths, UI5 floor, fail level) live in abap2ui5lint.jsonc
+npm ci                          # once - installs abaplint and the linter
+npx playwright install chromium # once - only for the render gate
+
+npm run check                   # both gates, expect 0 issues
+npm run check:abap              # abaplint only
+npm run check:abap2ui5:fast     # linter without the render gate (no browser)
+npm run fix                     # apply the linter's mechanical corrections
 ```
+
+Settings (paths, UI5 floor, distribution, rule severities, fail level) live in
+`abap2ui5lint.jsonc`; every rule id is documented at
+[abap2ui5.github.io/linter](https://abap2ui5.github.io/linter/).
+
+Prefer no project install? `npx @abap2ui5/linter src --no-render` runs the
+static half straight from npm.
 
 ## Iterate without a SAP system
 
+- **[VS Code extension](https://github.com/abap2UI5/vscode-extension)**
+  ([Marketplace](https://marketplace.visualstudio.com/items?itemName=abap2ui5.abap2ui5),
+  [Open VSX](https://open-vsx.org/extension/abap2ui5/abap2ui5)) — F9 launches
+  a class in an embedded preview against a real system; the linter's findings
+  arrive as editor diagnostics with quick fixes while you type, plus
+  completion for the UI5 API and the class's own binding paths, a template
+  gallery for new apps, and the reconstructed XML view beside the code.
 - **[ai-mcp](https://github.com/abap2UI5/ai-mcp)** — MCP server giving AI
   agents the full loop: deploy the class, build the transpiled Node backend,
   run the app headless and look at a screenshot.
-- **[vscode-extension](https://github.com/abap2UI5-addons/vscode-extension)**
-  — F9 launches a class in an embedded preview against a real system, with
-  the linter's findings as editor diagnostics.
 
 ## Learn more
 
 - [AGENTS.md](AGENTS.md) — the complete app-building reference (also for humans)
 - [Documentation](https://abap2ui5.github.io/docs/) — the rendered docs site
 - [Samples](https://github.com/abap2UI5/samples) — curated example apps
-- [ai-demokit](https://github.com/abap2UI5/ai-demokit) — ~280 gate-verified
-  ports of the official UI5 demo kit samples
+  (bindings, events, popups, navigation)
+- [samples-controls](https://github.com/abap2UI5/samples-controls) — the
+  official UI5 demo kit rebuilt 1:1 as gate-verified abap2UI5 apps

@@ -1,9 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx --yes @abaplint/cli@latest abaplint.jsonc)",
+      "Bash(npm ci)",
+      "Bash(npm install)",
+      "Bash(npm run check)",
+      "Bash(npm run check:abap)",
+      "Bash(npm run check:abap2ui5)",
+      "Bash(npm run check:abap2ui5:fast)",
+      "Bash(npm run fix)",
       "Bash(npx abaplint:*)",
-      "Bash(npx --yes github:abap2UI5/abap2UI5-linter:*)",
+      "Bash(npx abap2ui5lint:*)",
+      "Bash(npx playwright install:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
