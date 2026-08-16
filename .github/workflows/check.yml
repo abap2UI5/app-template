@@ -9,10 +9,17 @@
 #                    bindings, builder-tree defects) plus a headless
 #                    XMLView.create render of every view
 #
-# The linter also ships as a GitHub Action (`uses: abap2UI5/linter@v0.1.0`,
-# every input optional and defaulting to abap2ui5lint.jsonc). It is the shorter
-# workflow; the npm route below is used here because it pins one version for CI
-# and for `npm run check` on your machine.
+# The linter also ships as a GitHub Action (`uses: abap2UI5/linter@v0` - the
+# major tag, every input optional and defaulting to abap2ui5lint.jsonc). It is
+# the shorter workflow; the npm route below is used here because it pins one
+# version for CI and for `npm run check` on your machine.
+#
+# The two actions below are pinned to a COMMIT rather than to `@v7`, and the
+# repository you make from this template inherits that. A major tag is a
+# pointer its owner can move, so a job runs whatever it points at that day;
+# a commit cannot change under you. The tag stays in the comment so the
+# version is still readable, and `.github/dependabot.yml` (also inherited)
+# moves the pins - a pinned action does not become a stale one.
 name: check
 
 on:
@@ -32,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: 'npm'
