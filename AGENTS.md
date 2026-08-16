@@ -219,13 +219,13 @@ ships for existing apps but is **frozen** — new apps and new code use
 A chain is read far more often than it is written, and its layout is the only
 thing that still makes it legible as the XML tree it stands for. The rules
 below are the ones the sample repositories are ported and reviewed against;
-`.github/abaplint/auto_abaplint_fix.jsonc` excludes the shipped apps from
-`align_parameters` / `line_break_multiple_parameters` so the auto-formatter
-does not undo them.
+In the framework repository, `.github/abaplint/auto_abaplint_fix.jsonc`
+excludes the shipped apps from `align_parameters` /
+`line_break_multiple_parameters` so its auto-formatter does not undo them.
 
 **They are machine-checked.** The abap2UI5-linter's `chain-house-layout` rule
 checks one call per line, four spaces per level and the closing call's column;
-`npm run check:abap2ui5` reports and `npm run fmt:chains` applies. It rewrites
+`npm run check:abap2ui5` reports it and `npm run fix` applies it. It rewrites
 whitespace *between* chain segments only and verifies that collapsing every run
 of code-whitespace leaves the file identical, so a layout fix can never change
 what the view builds. The blank-line rules below stay reviewer-enforced.
@@ -344,23 +344,19 @@ content rather than as a continuation of the `content` aggregation; the
 missing blanks between them are what keep the three together. Blanks in both
 places, or in neither, and the same view reads as a pile of fragments.
 
-**Do not expect a gate to catch this for you.** abaplint's formatting rules
-are deliberately kept off the app chains (`align_parameters` and
-`line_break_multiple_parameters` are excluded in
-`.github/abaplint/auto_abaplint_fix.jsonc`, `indentation` is off — they would
-flatten exactly the layout this section builds). The abap2UI5-linter does
-judge it, with two rules — `chain-indentation` (a sibling in a different
-column than its siblings, a call written left of the element it belongs to;
-the step *size* is not judged, only that a chain keeps its own rhythm) and
-`chain-element-per-line` (several controls on one line; attributes may share
-their control's line, and so may the container it opens) — **but both ship as
-`hint`, and a config with `failOn: warning` does not even print them.** In
-`abap2UI5/samples` they are muted twice over: 339 `chain-element-per-line`
-findings went into `abap2ui5lint-baseline.json` when the linter was adopted,
-one of them the `` view->ele( `Shell` )->ele( `Page` `` idiom that repository
-documents. So check the config of the repository you are in before you trust
-a green run — and either way, re-read the chain you just wrote against the
-example above.
+**A gate does catch most of this — here.** `abap2ui5lint.jsonc` in this
+template switches `chain-house-layout` on at `warning`, and `failOn` is
+`warning`, so a drifted chain fails `npm run check` and `npm run fix` puts it
+back. What that rule does **not** judge is the blank lines: those stay
+reviewer-enforced, which is why the example above is worth re-reading against
+what you just wrote.
+
+Two things to know if you carry these conventions into another repository:
+the rule is **opt-in**, so a project that does not name it in its config is
+not checked at all; and abaplint's own formatting rules are deliberately kept
+off builder chains (`indentation` is off, and in the framework's autofix
+config `align_parameters` and `line_break_multiple_parameters` are excluded)
+because they would flatten exactly the layout this section builds.
 
 #### What a broken chain looks like
 
@@ -552,7 +548,7 @@ The same tree, with the subtree held in a variable:
   `ValueState`/icon is your app's job: compute it in ABAP and bind it
   (`state="{STATUS_STATE}"`). Functions that did those things were shipped
   once and removed again — the module header states the admission criteria
-  and `npm run check:formatter` enforces them.
+  and the framework's own `check:formatter` gate enforces them there.
 - **UI5 1.71 floor**: the framework supports OpenUI5 down to 1.71. Before
   using a control/property/aggregation, check its "available since" in the
   UI5 API — post-1.71 members need a UI5 release that has them; a wrong

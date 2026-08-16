@@ -47,8 +47,11 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium --with-deps
 
-      # settings come from abap2ui5lint.jsonc; findings are annotated onto the
-      # pull request diff automatically inside a workflow
+      # settings come from abap2ui5lint.jsonc, which asks for the render gate
+      # ("render": true) - so a runtime that failed to install fails this step
+      # instead of being skipped with a warning under a green check. Findings
+      # are annotated onto the pull request diff automatically inside a
+      # workflow.
       - name: abap2UI5-linter (property gate + headless render)
         run: npx abap2ui5lint
 

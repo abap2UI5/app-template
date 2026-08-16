@@ -31,8 +31,37 @@ AI agents.
 3. Create an ICF endpoint for the framework's HTTP handler (see the
    [documentation](https://abap2ui5.github.io/docs/)) and open
    `<endpoint>?app_start=zcl_app_001`.
-4. Build your app: copy `src/zcl_app_001.clas.abap` (+ its `.clas.xml`,
-   keeping `CLSNAME` in sync), and follow `AGENTS.md`.
+4. Make it yours (below), then build your app following `AGENTS.md`.
+
+## Make it yours
+
+After **Use this template** the repository is still called `app-template`: the
+name is in `.abapgit.xml`, the ABAP package still says *abap2UI5 app*, and the
+app is still `ZCL_APP_001`. One command changes all of it:
+
+```bash
+npm run rename -- --class zcl_my_app --package "My App" --repo my-app
+```
+
+Add `--dry` to see what it would touch first. It rewrites the class in the
+ABAP **and** the `CLSNAME` in its `.clas.xml` — renaming only one of the two
+gives you an object abapGit imports under one name and ABAP activates under
+another, which is the mistake this exists to prevent. (`xml_consistency` in
+`abaplint.jsonc` catches it either way.)
+
+Three decisions the script deliberately leaves to you:
+
+- **Your namespace.** `abaplint.jsonc` requires `^ZCL_` or `^ZCX_`, which is
+  the customer namespace every system has. If you develop in a registered
+  namespace (`/ACME/`) or behind a company prefix (`ZAB_`), change
+  `object_naming` there first — you make this choice once and live with it for
+  years.
+- **The LICENSE**, which still reads *Copyright (c) 2026 abap2UI5*. It is MIT,
+  so you may keep it, change the holder, or replace it entirely. It is your
+  project now.
+- **The ABAP package.** `src/package.devc.xml` creates one package. Whether
+  that is `$TMP` or a transportable package is decided when abapGit first
+  pulls the repository into your system, not here.
 
 ## Validate locally
 
