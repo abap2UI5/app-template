@@ -12,7 +12,7 @@ with the validation gates preconfigured.
 | `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
 | `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
 | `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
-| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework from the URL in it for dependency resolution |
+| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.143.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor for this template: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
 | `.github/workflows/check.yml` | CI: abaplint + abap2UI5-linter (static gate + headless render of every view) |
 

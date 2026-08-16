@@ -7,18 +7,29 @@
       // the abap2UI5 framework this app runs on - cloned by abaplint for
       // dependency resolution (z2ui5_if_app, z2ui5_if_client, z2ui5_cl_ui5_view_builder)
       "url": "https://github.com/abap2UI5/abap2UI5",
-      // NOT pinned, and that is currently forced rather than chosen: the
-      // newest release tag (1.142.0, 2026-07-21) does not contain
-      // z2ui5_cl_ui5_view_builder or client->get_event( ) - both reached main
-      // on 2026-08-12 - so pinning to it fails the very starter class this
-      // template ships. abapGit pulls the default branch anyway, which is
-      // what a reader following the quickstart installs.
+      // Pinned to a release tag, so this lint decides the same thing today and
+      // in six months. Unpinned it resolved the framework's default branch,
+      // and a branch moves: a rename over there turned into a red build here
+      // on a repository nobody had touched, and the reverse - a starter class
+      // that stopped compiling against what people actually install - would
+      // have passed just as quietly.
       //
-      // Pin it once a release carries the builder, with:
-      //     "branch": "<tag>",
-      // abaplint hands that to git clone --branch, which takes a tag as
-      // happily as a branch. There is no "tag" key - it would be ignored in
-      // silence, which looks exactly like a pin that works.
+      // It was unpinned because it had to be, not by choice: 1.142.0
+      // (2026-07-21) carries neither z2ui5_cl_ui5_view_builder nor
+      // client->get_event( ), and the starter class in src/ uses both. They
+      // reached the framework's main on 2026-08-12 and shipped in 1.143.0,
+      // which is the first release this template can compile against at all.
+      //
+      // The key is "branch", and it is not a typo. abaplint hands the value to
+      // `git clone --branch`, which takes a tag as happily as a branch name.
+      // There is no "tag" key: abaplint ignores unknown keys in silence, so a
+      // "tag" here would look exactly like a pin that works while the clone
+      // quietly kept following main.
+      //
+      // Moving it: bump to the new tag, run `npm run check`. If the starter
+      // class needs an API a release does not have yet, the pin is what tells
+      // you - which is the whole point of having one.
+      "branch": "1.143.0",
       "files": "/src/**/*.*"
     }
   ],
