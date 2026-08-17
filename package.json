@@ -9,6 +9,7 @@
     "check:abap2ui5": "abap2ui5lint",
     "check:abap2ui5:fast": "abap2ui5lint --no-render",
     "fix": "abap2ui5lint --fix",
+    "check:pin": "node scripts/check-pin.mjs",
     "rename": "node scripts/rename.mjs"
   },
   "license": "MIT",

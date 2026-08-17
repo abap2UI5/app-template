@@ -28,10 +28,13 @@ CLASS zcl_app_001 IMPLEMENTATION.
     IF client->check_on_init( ).
       model_init( ).
       view_display( ).
+    ELSEIF client->check_on_navigated( ).
+      " a navigated roundtrip is the one that has to put the app back on
+      " screen - it carries no event, so it has to be asked about before
+      " on_event( ), which would fall through its CASE and render nothing
+      view_display( ).
     ELSEIF client->check_on_event( ).
       on_event( ).
-    ELSEIF client->check_on_navigated( ).
-      view_display( ).
     ENDIF.
 
   ENDMETHOD.

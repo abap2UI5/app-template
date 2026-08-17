@@ -14,7 +14,9 @@ with the validation gates preconfigured.
 | `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
 | `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.143.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor for this template: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
-| `.github/workflows/check.yml` | CI: abaplint + abap2UI5-linter (static gate + headless render of every view) |
+| `.github/workflows/check.yml` | CI: abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
+| `scripts/rename.mjs` | `npm run rename -- --class zcl_my_app` — makes the template yours (class, sidecar `CLSNAME`, package text, repo name) |
+| `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in three places and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
 
 ## Build & verify — run before every commit
 
@@ -25,11 +27,8 @@ npx playwright install chromium # once - only the render gate needs a browser
 npm run check                   # abaplint + linter, expect 0 issues
 npm run check:abap2ui5:fast     # fast loop: linter without the render gate
 npm run fix                     # apply the linter's mechanical corrections
+npm run check:pin               # the framework release this repo names, in one place
 ```
-
-Where the mirrored guide below names the framework repo's own scripts
-(`npm run check:abap2ui5`, `npm run fmt:chains`), the equivalents here are
-`npm run check:abap2ui5` and `npm run fix`.
 
 Both gates run offline from any SAP system (abaplint clones the framework on
 first use, so it needs network). CI runs exactly these versions — a local
@@ -58,6 +57,29 @@ writing or changing any app class.
 > the section back. In your own project you may of course extend this file
 > with your app's own rules — put those ABOVE this line so a re-sync never
 > overwrites them.
+>
+> **Three sentences deviate on purpose**, because the mirrored text names
+> things that exist in the framework repository and not here. They are listed
+> so a re-sync can re-apply them instead of rediscovering them:
+>
+> 1. §3 "Formatting the chain": the framework's `npm run fmt:chains` is
+>    `npm run fix` here (same command, `abap2ui5lint --fix`).
+> 2. §3, same paragraph: `.github/abaplint/auto_abaplint_fix.jsonc` is a file
+>    of the framework repository, so the sentence says whose it is. This repo
+>    has no autofix config — abaplint's formatting rules are simply not
+>    enabled in `abaplint.jsonc`.
+> 3. §3 "A gate does catch most of this — here": upstream the same paragraph
+>    reads "Do not expect a gate to catch this for you", which is not true of
+>    this repository — `abap2ui5lint.jsonc` switches `chain-house-layout` on at
+>    `warning` and `failOn` is `warning`, so a drifted chain fails
+>    `npm run check`. §8's `check:formatter` is named as the framework's own
+>    gate for the same reason.
+>
+> Everything else is verbatim, and **nothing checks that** yet: the core's
+> `shared-file-gate.mjs` declares its shared files for `samples`,
+> `samples-controls` and `samples-stack`, and this repository is not one of
+> them. Until it is, a re-sync is a manual diff against
+> `docs/agents/building-apps.md` — do it before trusting this half.
 
 ## 1. The model in one paragraph
 
@@ -105,10 +127,10 @@ CLASS zcl_my_app IMPLEMENTATION.
     IF client->check_on_init( ).
       model_init( ).
       view_display( ).
-    ELSEIF client->check_on_event( ).
-      on_event( ).
     ELSEIF client->check_on_navigated( ).
       view_display( ).
+    ELSEIF client->check_on_event( ).
+      on_event( ).
     ENDIF.
 
   ENDMETHOD.

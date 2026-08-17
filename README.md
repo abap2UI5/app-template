@@ -17,7 +17,9 @@ AI agents.
   binding mistakes, builder-tree defects, chain layout) and renders it
   headless with a real `XMLView.create`
 - **CI** (`.github/workflows/check.yml`) running both gates on every push/PR —
-  the same versions `npm run check` runs locally, pinned in `package-lock.json`
+  abaplint from this repo's `package-lock.json`, the view checks through the
+  linter's own GitHub Action (`abap2UI5/linter`, SHA-pinned), which brings the
+  UI5 runtime and the browser the render gate needs
 - **`AGENTS.md`** — the complete app-building reference for AI assistants,
   plus a `.claude/settings.json` permission allowlist so autonomous sessions
   run the gates without prompts
@@ -77,7 +79,14 @@ npm run check                   # both gates, expect 0 issues
 npm run check:abap              # abaplint only
 npm run check:abap2ui5:fast     # linter without the render gate (no browser)
 npm run fix                     # apply the linter's mechanical corrections
+npm run check:pin               # the framework release named in one place only
 ```
+
+`check:pin` is the small gate around the one pin nothing else can move: the
+framework release in `abaplint.jsonc` is a tag inside an abaplint dependency,
+which Dependabot cannot read, and the same number is repeated in this README
+and in `AGENTS.md`. It fails when the three disagree, and tells you (without
+failing) when a newer framework release is out.
 
 Settings (paths, UI5 floor, distribution, rule severities, fail level) live in
 `abap2ui5lint.jsonc`; every rule id is documented at
@@ -107,3 +116,8 @@ static half straight from npm.
   (bindings, events, popups, navigation)
 - [samples-controls](https://github.com/abap2UI5/samples-controls) — the
   official UI5 demo kit rebuilt 1:1 as gate-verified abap2UI5 apps
+- [samples-stack](https://github.com/abap2UI5/samples-stack) — abap2UI5
+  alongside what your system already runs: OData, Smart Controls, RAP (with and
+  without draft), business events, stateful sessions and locks, AMC/APC
+  WebSockets, the MIME repository, the Fiori Launchpad. Reach for it when your
+  app needs data or a stack the plain framework makes no assumption about
