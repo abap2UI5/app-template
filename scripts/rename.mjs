@@ -9,6 +9,14 @@
 // CLSNAME of its .clas.xml. Renaming half of it gives you an object that
 // abapGit imports under one name and ABAP activates under another.
 //
+// WHAT IT RENAMES IS NOT WRITTEN HERE. `template.json` describes it - the
+// placeholder class, which files carry which name, and which files a new
+// project gets at all - because two other programs personalise this same
+// template and must agree with this one: abap2UI5/ai-mcp's `scaffold_app`
+// tool serves the template to an agent, and the VS Code extension's "New
+// Project from Template" writes it into a folder. One description, three
+// executors.
+//
 // Usage:
 //   npm run rename -- --class zcl_my_app [--package "My App"] [--repo my-app]
 //   npm run rename -- --class zcl_my_app --dry
@@ -16,12 +24,15 @@
 // Nothing outside this repository is touched, and it is a plain file rewrite:
 // `git diff` shows you everything before you commit it.
 
-import { readFileSync, writeFileSync, renameSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = join(ROOT, 'src');
+
+const SPEC = JSON.parse(readFileSync(join(ROOT, 'template.json'), 'utf8'));
+const OLD_CLASS = SPEC.placeholderClass;
+const SUBS = SPEC.substitutions;
 
 const argv = process.argv.slice(2);
 const flag = (name) => {
@@ -30,7 +41,6 @@ const flag = (name) => {
 };
 const DRY = argv.includes('--dry');
 
-const OLD_CLASS = 'zcl_app_001';
 const newClass = (flag('class') || '').toLowerCase();
 const newPackage = flag('package');
 const newRepo = flag('repo');
@@ -46,12 +56,12 @@ if (!newClass) {
   --dry      print what would change, write nothing`);
   process.exit(2);
 }
-if (!/^z(cl|cx)_[a-z0-9_]+$/.test(newClass)) {
+if (!new RegExp(SUBS.class.rule).test(newClass)) {
   console.error(`rename: "${newClass}" does not look like an ABAP class name (^zcl_ or ^zcx_, lower case, letters digits underscore)`);
   process.exit(2);
 }
-if (newClass.length > 30) {
-  console.error(`rename: "${newClass}" is ${newClass.length} characters; ABAP allows 30`);
+if (newClass.length > SUBS.class.maxLength) {
+  console.error(`rename: "${newClass}" is ${newClass.length} characters; ABAP allows ${SUBS.class.maxLength}`);
   process.exit(2);
 }
 if (newClass === OLD_CLASS) {
@@ -59,37 +69,46 @@ if (newClass === OLD_CLASS) {
   process.exit(2);
 }
 
+/* The three substitution kinds template.json can ask for, executed. Kept
+ * together so a new kind over there is one function here, not a new pass. */
+const applyClass = (text, cls) =>
+  text.split(OLD_CLASS).join(cls).split(OLD_CLASS.toUpperCase()).join(cls.toUpperCase());
+const applyElement = (text, element, value) =>
+  text.replace(new RegExp(`<${element}>[^<]*</${element}>`), `<${element}>${value}</${element}>`);
+const applyJsonKey = (text, key, value) =>
+  text.replace(new RegExp(`"${key}":\\s*"[^"]*"`), `"${key}": "${value}"`);
+
 const changes = [];
 const edit = (file, fn) => {
-  const before = readFileSync(file, 'utf8');
+  const at = join(ROOT, file);
+  if (!existsSync(at)) return;
+  const before = readFileSync(at, 'utf8');
   const after = fn(before);
   if (before === after) return;
-  changes.push({ file: file.slice(ROOT.length + 1), before, after });
+  changes.push({ file, before, after });
 };
 
-// 1. the class, in the ABAP and in the CLSNAME of its sidecar
-for (const name of readdirSync(SRC)) {
-  if (!name.startsWith(OLD_CLASS)) continue;
-  edit(join(SRC, name), (t) =>
-    t.replaceAll(OLD_CLASS, newClass).replaceAll(OLD_CLASS.toUpperCase(), newClass.toUpperCase()));
+// 1. the class, wherever template.json says it is written - the ABAP, the
+//    CLSNAME of its sidecar, and the documentation that names it
+for (const file of SUBS.class.files) {
+  edit(file, (t) => applyClass(t, newClass));
 }
 
 // 2. the package description abapGit shows
 if (newPackage) {
-  edit(join(SRC, 'package.devc.xml'), (t) =>
-    t.replace(/<CTEXT>[^<]*<\/CTEXT>/, `<CTEXT>${newPackage}</CTEXT>`));
+  for (const { file, element } of SUBS.packageText) {
+    edit(file, (t) => applyElement(t, element, newPackage));
+  }
 }
 
 // 3. the repository name, and npm's idea of it
 if (newRepo) {
-  edit(join(ROOT, '.abapgit.xml'), (t) => t.replace(/<NAME>[^<]*<\/NAME>/, `<NAME>${newRepo}</NAME>`));
-  edit(join(ROOT, 'package.json'), (t) => t.replace(/"name":\s*"[^"]*"/, `"name": "${newRepo}"`));
-}
-
-// 4. the class name where the documentation names it
-for (const doc of ['README.md', 'AGENTS.md']) {
-  edit(join(ROOT, doc), (t) =>
-    t.replaceAll(OLD_CLASS, newClass).replaceAll(OLD_CLASS.toUpperCase(), newClass.toUpperCase()));
+  for (const target of SUBS.repo) {
+    edit(target.file, (t) =>
+      target.element
+        ? applyElement(t, target.element, newRepo)
+        : applyJsonKey(t, target.jsonKey, newRepo));
+  }
 }
 
 if (changes.length === 0) {
@@ -103,10 +122,13 @@ if (newRepo) console.log(`        repository -> ${newRepo}`);
 console.log('');
 for (const c of changes) console.log(`  ${c.file}`);
 
-const renames = readdirSync(SRC)
-  .filter((n) => n.startsWith(OLD_CLASS))
-  .map((n) => [join(SRC, n), join(SRC, n.replace(OLD_CLASS, newClass))]);
-for (const [from] of renames) console.log(`  ${from.slice(ROOT.length + 1)}  ->  ${from.slice(ROOT.length + 1).replace(OLD_CLASS, newClass)}`);
+// The class name is in the FILE names too, and template.json says so.
+const renames = SUBS.class.renamesPath
+  ? SUBS.class.files
+      .filter((f) => f.includes(OLD_CLASS) && existsSync(join(ROOT, f)))
+      .map((f) => [f, f.split(OLD_CLASS).join(newClass)])
+  : [];
+for (const [from, to] of renames) console.log(`  ${from}  ->  ${to}`);
 
 if (DRY) {
   console.log('\n--dry: nothing written');
@@ -114,7 +136,7 @@ if (DRY) {
 }
 
 for (const c of changes) writeFileSync(join(ROOT, c.file), c.after);
-for (const [from, to] of renames) renameSync(from, to);
+for (const [from, to] of renames) renameSync(join(ROOT, from), join(ROOT, to));
 
 console.log(`
 Done. Two things this could not do for you:

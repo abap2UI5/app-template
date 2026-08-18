@@ -10,15 +10,24 @@
     "check:abap2ui5:fast": "abap2ui5lint --no-render",
     "fix": "abap2ui5lint --fix",
     "check:pin": "node scripts/check-pin.mjs",
-    "rename": "node scripts/rename.mjs"
+    "check:template": "node scripts/check-template.mjs",
+    "agents": "node scripts/generate-agents.mjs",
+    "check:agents": "node scripts/generate-agents.mjs --check",
+    "rename": "node scripts/rename.mjs",
+    "test": "npm run check"
   },
   "license": "MIT",
   "devDependencies": {
     "@abap2ui5/linter": "^0.2.1",
-    "@abap2ui5/render-runtime": "^0.1.1",
+    "@abap2ui5/render-runtime": "^0.2.1",
     "@abaplint/cli": "^2.119.66"
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "@abap2ui5/linter": {
+      "@abap2ui5/render-runtime": "$@abap2ui5/render-runtime"
+    }
   }
 }

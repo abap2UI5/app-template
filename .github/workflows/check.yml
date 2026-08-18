@@ -70,6 +70,23 @@ jobs:
       - name: Framework pin
         run: npm run check:pin
 
+      # Also dependency-free, and also about THIS repository rather than about
+      # a project made from it: template.json is what abap2UI5/ai-mcp and the
+      # VS Code extension build a project from, so a file listed there and not
+      # here (or here and not there) is a project somebody else hands out with
+      # a hole in it. See scripts/check-template.mjs.
+      - name: Template description
+        run: npm run check:template
+
+      # Dependency-free as well, and about the half of AGENTS.md that is not
+      # written here: everything from "1. The model in one paragraph" down is
+      # abap2UI5's app-building guide, generated into this file by
+      # `npm run agents` from the guide plus the declared deviations. This
+      # fails when the two have parted - and says so and passes when the guide
+      # cannot be reached at all. See scripts/generate-agents.mjs.
+      - name: App guide mirror
+        run: npm run check:agents
+
       - run: npm ci
 
       - name: abaplint (expect 0 issues)

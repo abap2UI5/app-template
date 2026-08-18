@@ -52,6 +52,12 @@ gives you an object abapGit imports under one name and ABAP activates under
 another, which is the mistake this exists to prevent. (`xml_consistency` in
 `abaplint.jsonc` catches it either way.)
 
+What it renames is written down in `template.json`, not in the script: the
+[MCP server](https://github.com/abap2UI5/ai-mcp) and the
+[VS Code extension](https://github.com/abap2UI5/vscode-extension) hand out this
+same template, and they read the same file — so a project started any of the
+three ways is the same project.
+
 Three decisions the script deliberately leaves to you:
 
 - **Your namespace.** `abaplint.jsonc` requires `^ZCL_` or `^ZCX_`, which is
