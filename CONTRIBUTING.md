@@ -13,7 +13,7 @@ npm run check:template            # template.json still describes this repositor
 ```
 
 Two other repositories hand this template out —
-[ai-mcp](https://github.com/abap2UI5/ai-mcp)'s `scaffold_app` and the
+[mcp-server](https://github.com/abap2UI5/mcp-server)'s `scaffold_app` and the
 [VS Code extension](https://github.com/abap2UI5/vscode-extension)'s "New
 Project from Template" — and both read `template.json` to know what a project
 takes from here. A file added to this repository belongs in that description;

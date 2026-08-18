@@ -29,7 +29,7 @@ This template is personalised in three places, and only one of them is here:
 | Who | How |
 | --- | --- |
 | this repository | `npm run rename` rewrites the files in place |
-| [ai-mcp](https://github.com/abap2UI5/ai-mcp) | `scaffold_app` reads a checkout and hands an agent the files |
+| [mcp-server](https://github.com/abap2UI5/mcp-server) | `scaffold_app` reads a checkout and hands an agent the files |
 | [the VS Code extension](https://github.com/abap2UI5/vscode-extension) | "New Project from Template" writes them into a folder, from a snapshot |
 
 The three run in different worlds — in place, in memory, through the VS Code
@@ -64,7 +64,7 @@ green run means CI passes. Deploy to a system via
 While writing, the
 [VS Code extension](https://github.com/abap2UI5/vscode-extension) surfaces the
 same linter findings as editor diagnostics with quick fixes, and
-[ai-mcp](https://github.com/abap2UI5/ai-mcp) gives an MCP-capable agent the
+[mcp-server](https://github.com/abap2UI5/mcp-server) gives an MCP-capable agent the
 deploy → build → run-headless-and-screenshot loop.
 
 Conventions: every `.clas.abap` needs its `.clas.xml` sidecar (UTF-8 **with
@@ -652,7 +652,7 @@ The same tree, with the subtree held in a variable:
   binding mistakes, builder-tree defects) and can render the view headless:
   `npx --yes @abap2ui5/linter my_app.clas.abap` — also
   available as a GitHub Action and inside the VS Code extension.
-- **[ai-mcp](https://github.com/abap2UI5/ai-mcp)** gives MCP-capable agents
+- **[mcp-server](https://github.com/abap2UI5/mcp-server)** gives MCP-capable agents
   the full loop without a SAP system: `capabilities` → `deploy_app` →
   `build_backend` → `run_app` (headless screenshot + errors).
 - **[vscode-extension](https://github.com/abap2UI5/vscode-extension)**:

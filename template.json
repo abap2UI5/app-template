@@ -1,5 +1,5 @@
 {
-  "note": "What it takes to turn this template into somebody's project: which files a new project gets, and which text in them carries a name. THE source of truth for that - scripts/rename.mjs executes it here, abap2UI5/ai-mcp's lib/scaffold.mjs executes it over a checkout, and abap2UI5/vscode-extension snapshots it. Three programs, one description. Add a file or a substitution HERE.",
+  "note": "What it takes to turn this template into somebody's project: which files a new project gets, and which text in them carries a name. THE source of truth for that - scripts/rename.mjs executes it here, abap2UI5/mcp-server's lib/scaffold.mjs executes it over a checkout, and abap2UI5/vscode-extension snapshots it. Three programs, one description. Add a file or a substitution HERE.",
   "placeholderClass": "zcl_app_001",
   "files": {
     "shared": [

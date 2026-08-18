@@ -4,7 +4,7 @@
  * other repositories act on it.
  *
  * `template.json` says which files a new project gets and which text in them
- * carries a name. `scripts/rename.mjs` executes that here; abap2UI5/ai-mcp's
+ * carries a name. `scripts/rename.mjs` executes that here; abap2UI5/mcp-server's
  * `scaffold_app` executes it over a checkout of this repository; the VS Code
  * extension snapshots it for "New Project from Template". So a file that is
  * listed and does not exist, or exists and is not listed, is not a typo in a
@@ -125,7 +125,7 @@ if (fs.existsSync(lockFile)) {
 if (problems.length) {
   console.error(`template.json does not describe this repository - ${problems.length} problem(s):`);
   for (const p of problems) console.error(`  ${p}`);
-  console.error('\nabap2UI5/ai-mcp and abap2UI5/vscode-extension build a project from that description.');
+  console.error('\nabap2UI5/mcp-server and abap2UI5/vscode-extension build a project from that description.');
   process.exit(1);
 }
 console.log(`template.json describes this repository - OK (${shared.length} shared, ${named.length} named, ${templateOwn.length} excluded)`);
