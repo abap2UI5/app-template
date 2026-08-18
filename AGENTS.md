@@ -14,7 +14,9 @@ with the validation gates preconfigured.
 | `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
 | `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.143.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor for this template: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
-| `.github/workflows/check.yml` | CI: abaplint + abap2UI5-linter (static gate + headless render of every view) |
+| `.github/workflows/check.yml` | CI: abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
+| `scripts/rename.mjs` | `npm run rename -- --class zcl_my_app` — makes the template yours (class, sidecar `CLSNAME`, package text, repo name) |
+| `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in three places and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
 
 ## Build & verify — run before every commit
 
@@ -25,11 +27,8 @@ npx playwright install chromium # once - only the render gate needs a browser
 npm run check                   # abaplint + linter, expect 0 issues
 npm run check:abap2ui5:fast     # fast loop: linter without the render gate
 npm run fix                     # apply the linter's mechanical corrections
+npm run check:pin               # the framework release this repo names, in one place
 ```
-
-Where the mirrored guide below names the framework repo's own scripts
-(`npm run check:abap2ui5`, `npm run fmt:chains`), the equivalents here are
-`npm run check:abap2ui5` and `npm run fix`.
 
 Both gates run offline from any SAP system (abaplint clones the framework on
 first use, so it needs network). CI runs exactly these versions — a local
@@ -58,12 +57,36 @@ writing or changing any app class.
 > the section back. In your own project you may of course extend this file
 > with your app's own rules — put those ABOVE this line so a re-sync never
 > overwrites them.
+>
+> **Three sentences deviate on purpose**, because the mirrored text names
+> commands and files that exist in the framework repository and not here:
+>
+> 1. §3 "Formatting the chain": the framework's `npm run fmt:chains` is
+>    `npm run fix` here (same command, `abap2ui5lint --fix`).
+> 2. §3, same paragraph: `.github/abaplint/auto_abaplint_fix.jsonc` is a file
+>    of the framework repository, so the sentence says whose it is. This repo
+>    has no autofix config — abaplint's formatting rules are simply not
+>    enabled in `abaplint.jsonc`.
+> 3. §8 "Formatters": `npm run check:formatter` is the framework's own gate,
+>    so the sentence says so.
+>
+> You do not have to re-apply those by hand, and you should not: they are
+> **declared upstream**, in `.github/scripts/shared-file-gate.mjs`'s
+> `DEVIATIONS`, and that gate now compares this file against the guide with
+> them applied. So the rest is held verbatim — a sentence changed here without
+> being changed there turns the framework's CI red, and so does a deviation
+> whose upstream sentence was edited away. Re-syncing is: take the guide from
+> `## 1. The model in one paragraph` down, apply the three, replace everything
+> below this block.
 
 ## 1. The model in one paragraph
 
 An abap2UI5 app is **one ABAP class** implementing `z2ui5_if_app`. The
-framework calls its `main( client )` method on every HTTP roundtrip: once at
-startup (`check_on_init`) and once per user interaction (`check_on_event`).
+framework calls its `main( client )` method on every HTTP roundtrip, and the
+app dispatches on why it was called: it has to put its view on screen
+(`check_on_navigated`, true on the first start and on every return into the
+app), or the user interacted with it (`check_on_event`), or it is running for
+the very first time and has one-time setup to do (`check_on_init`).
 The app builds a UI5 XML view as a string, binds ABAP attributes into it,
 and registers named events. Between roundtrips the framework
 serializes the app object into a draft table and restores it — **every PUBLIC
@@ -105,10 +128,10 @@ CLASS zcl_my_app IMPLEMENTATION.
     IF client->check_on_init( ).
       model_init( ).
       view_display( ).
-    ELSEIF client->check_on_event( ).
-      on_event( ).
     ELSEIF client->check_on_navigated( ).
       view_display( ).
+    ELSEIF client->check_on_event( ).
+      on_event( ).
     ENDIF.
 
   ENDMETHOD.
@@ -219,13 +242,13 @@ ships for existing apps but is **frozen** — new apps and new code use
 A chain is read far more often than it is written, and its layout is the only
 thing that still makes it legible as the XML tree it stands for. The rules
 below are the ones the sample repositories are ported and reviewed against;
-In the framework repository, `.github/abaplint/auto_abaplint_fix.jsonc`
-excludes the shipped apps from `align_parameters` /
-`line_break_multiple_parameters` so its auto-formatter does not undo them.
+the framework repository's `.github/abaplint/auto_abaplint_fix.jsonc` excludes its shipped apps from
+`align_parameters` / `line_break_multiple_parameters` so the auto-formatter
+does not undo them.
 
 **They are machine-checked.** The abap2UI5-linter's `chain-house-layout` rule
 checks one call per line, four spaces per level and the closing call's column;
-`npm run check:abap2ui5` reports it and `npm run fix` applies it. It rewrites
+`npm run check:abap2ui5` reports and `npm run fix` applies. It rewrites
 whitespace *between* chain segments only and verifies that collapsing every run
 of code-whitespace leaves the file identical, so a layout fix can never change
 what the view builds. The blank-line rules below stay reviewer-enforced.
@@ -344,19 +367,29 @@ content rather than as a continuation of the `content` aggregation; the
 missing blanks between them are what keep the three together. Blanks in both
 places, or in neither, and the same view reads as a pile of fragments.
 
-**A gate does catch most of this — here.** `abap2ui5lint.jsonc` in this
-template switches `chain-house-layout` on at `warning`, and `failOn` is
-`warning`, so a drifted chain fails `npm run check` and `npm run fix` puts it
-back. What that rule does **not** judge is the blank lines: those stay
-reviewer-enforced, which is why the example above is worth re-reading against
-what you just wrote.
+**The blank lines are the part no gate catches.** abaplint's formatting rules
+are deliberately kept off the app chains (`align_parameters` and
+`line_break_multiple_parameters` are excluded in the framework repository's
+`.github/abaplint/auto_abaplint_fix.jsonc`, `indentation` is off — they would
+flatten exactly the layout this section builds), and no linter rule judges
+where a blank line belongs. That stays with the reader.
 
-Two things to know if you carry these conventions into another repository:
-the rule is **opt-in**, so a project that does not name it in its config is
-not checked at all; and abaplint's own formatting rules are deliberately kept
-off builder chains (`indentation` is off, and in the framework's autofix
-config `align_parameters` and `line_break_multiple_parameters` are excluded)
-because they would flatten exactly the layout this section builds.
+The *shape* around them is judged. The abap2UI5-linter has three layout rules:
+`chain-indentation` (a sibling in a different column than its siblings, a call
+written left of the element it belongs to; the step *size* is not judged, only
+that a chain keeps its own rhythm), `chain-element-per-line` (several controls
+on one line; attributes may share their control's line, and so may the
+container it opens), and `chain-house-layout`, which judges the step size too
+and is the one this section describes.
+
+**All three default to `hint`, which a config with `failOn: warning` does not
+even print — so what decides is the repository you are in, and every repository
+in this ecosystem raises them.** `abap2UI5`, `abap2UI5/samples-stack` and
+`abap2UI5/app-template` enable `chain-house-layout` at `warning`;
+`abap2UI5/samples` raises `chain-indentation` and `chain-element-per-line`
+instead; `abap2UI5/samples-controls` runs its own `chain-format` gate. Check
+the config before you trust a green run — and either way, re-read the chain you
+just wrote against the example above.
 
 #### What a broken chain looks like
 
@@ -598,7 +631,12 @@ The same tree, with the subtree held in a variable:
   `build_backend` → `run_app` (headless screenshot + errors).
 - **[vscode-extension](https://github.com/abap2UI5/vscode-extension)**:
   F9 launches the class in an embedded preview against a real system.
-- **Worked examples**: ~280 gate-verified sample apps in
-  [samples-controls](https://github.com/abap2UI5/samples-controls) (`src/`), curated
-  samples in [abap2UI5/samples](https://github.com/abap2UI5/samples), and
-  what-is-expressible answers in samples-controls' `CAPABILITIES.md`.
+- **Worked examples**, three catalogues with the same row shape, so one search
+  reads all of them: curated apps for "has somebody built this pattern" in
+  [abap2UI5/samples](https://github.com/abap2UI5/samples), 416 gate-verified
+  demo-kit ports for "how is this control expressed" in
+  [samples-controls](https://github.com/abap2UI5/samples-controls) (`src/`), and
+  apps that need something from your stack — OData, RAP, APC, the launchpad —
+  in [samples-stack](https://github.com/abap2UI5/samples-stack). What abap2UI5
+  can express at all is answered in samples-controls' `CAPABILITIES.md`, each
+  claim naming the port that proves it.
