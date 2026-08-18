@@ -53,7 +53,7 @@ another, which is the mistake this exists to prevent. (`xml_consistency` in
 `abaplint.jsonc` catches it either way.)
 
 What it renames is written down in `template.json`, not in the script: the
-[MCP server](https://github.com/abap2UI5/ai-mcp) and the
+[MCP server](https://github.com/abap2UI5/mcp-server) and the
 [VS Code extension](https://github.com/abap2UI5/vscode-extension) hand out this
 same template, and they read the same file — so a project started any of the
 three ways is the same project.
@@ -110,7 +110,7 @@ static half straight from npm.
   arrive as editor diagnostics with quick fixes while you type, plus
   completion for the UI5 API and the class's own binding paths, a template
   gallery for new apps, and the reconstructed XML view beside the code.
-- **[ai-mcp](https://github.com/abap2UI5/ai-mcp)** — MCP server giving AI
+- **[mcp-server](https://github.com/abap2UI5/mcp-server)** — MCP server giving AI
   agents the full loop: deploy the class, build the transpiled Node backend,
   run the app headless and look at a screenshot.
 

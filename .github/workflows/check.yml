@@ -71,7 +71,7 @@ jobs:
         run: npm run check:pin
 
       # Also dependency-free, and also about THIS repository rather than about
-      # a project made from it: template.json is what abap2UI5/ai-mcp and the
+      # a project made from it: template.json is what abap2UI5/mcp-server and the
       # VS Code extension build a project from, so a file listed there and not
       # here (or here and not there) is a project somebody else hands out with
       # a hole in it. See scripts/check-template.mjs.

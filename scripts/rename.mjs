@@ -12,7 +12,7 @@
 // WHAT IT RENAMES IS NOT WRITTEN HERE. `template.json` describes it - the
 // placeholder class, which files carry which name, and which files a new
 // project gets at all - because two other programs personalise this same
-// template and must agree with this one: abap2UI5/ai-mcp's `scaffold_app`
+// template and must agree with this one: abap2UI5/mcp-server's `scaffold_app`
 // tool serves the template to an agent, and the VS Code extension's "New
 // Project from Template" writes it into a folder. One description, three
 // executors.
