@@ -21,10 +21,12 @@
     ],
     "templateOwn": {
       "README.md": "describes the template itself; a project writes its own",
+      "CONTRIBUTING.md": "how to contribute to the template, not to a project made from it",
       "LICENSE": "the template's copyright line, not the project's",
       "package-lock.json": "enormous, and `npm install` regenerates it",
       "scripts/rename.mjs": "has nothing left to rename once it has renamed",
-      "scripts/check-pin.mjs": "gates a pin in files a project does not get"
+      "scripts/check-pin.mjs": "gates a pin in files a project does not get",
+      "scripts/check-template.mjs": "gates this description against this repository"
     }
   },
   "substitutions": {
