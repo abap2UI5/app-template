@@ -26,7 +26,9 @@
       "package-lock.json": "enormous, and `npm install` regenerates it",
       "scripts/rename.mjs": "has nothing left to rename once it has renamed",
       "scripts/check-pin.mjs": "gates a pin in files a project does not get",
-      "scripts/check-template.mjs": "gates this description against this repository"
+      "scripts/check-template.mjs": "gates this description against this repository",
+    "scripts/generate-agents.mjs": "regenerates the half of AGENTS.md this template mirrors from the framework guide; a project has the result, not the generator",
+    "scripts/app-guide-deviations.mjs": "abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here for that generator - the guide's deviations are the template's, not a project's"
     }
   },
   "substitutions": {

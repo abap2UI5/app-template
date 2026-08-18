@@ -78,6 +78,15 @@ jobs:
       - name: Template description
         run: npm run check:template
 
+      # Dependency-free as well, and about the half of AGENTS.md that is not
+      # written here: everything from "1. The model in one paragraph" down is
+      # abap2UI5's app-building guide, generated into this file by
+      # `npm run agents` from the guide plus the declared deviations. This
+      # fails when the two have parted - and says so and passes when the guide
+      # cannot be reached at all. See scripts/generate-agents.mjs.
+      - name: App guide mirror
+        run: npm run check:agents
+
       - run: npm ci
 
       - name: abaplint (expect 0 issues)

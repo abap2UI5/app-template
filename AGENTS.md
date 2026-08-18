@@ -19,6 +19,8 @@ with the validation gates preconfigured.
 | `scripts/rename.mjs` | `npm run rename -- --class zcl_my_app` — makes the template yours (class, sidecar `CLSNAME`, package text, repo name), by executing `template.json` |
 | `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in three places and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
 | `scripts/check-template.mjs` | `npm run check:template` — `template.json` has to describe this repository: every file it lists is here, every file here is listed or excluded with a reason, every substitution target exists |
+| `scripts/generate-agents.mjs` | `npm run agents` / `npm run check:agents` — writes the mirrored half of this file (everything below the provenance block) from the framework's app-building guide, and fails when the two have parted. Nothing below that line is edited here |
+| `scripts/app-guide-deviations.mjs` | The sentences the mirror is expected to say differently, and the two functions that execute them. **Not this repository's file**: it is abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here and held byte-equal by that repository's `npm run check:shared`, because its gate applies the same list to compare while the generator above applies it to write |
 
 ### `template.json` — one description, three executors
 
@@ -48,6 +50,8 @@ npm run check:abap2ui5:fast     # fast loop: linter without the render gate
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release this repo names, in one place
 npm run check:template          # template.json still describes this repository
+npm run check:agents            # the mirrored half of AGENTS.md matches the guide
+npm run agents                  # ...and this takes the guide's current text
 npm test                        # the same as `npm run check`, so `npm test` works here too
 ```
 
@@ -73,11 +77,13 @@ writing or changing any app class.
 > **Provenance:** everything from "1. The model in one paragraph" down is a
 > mirror of `docs/agents/building-apps.md` in
 > [abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5) — the copy exists
-> so this repo needs no framework checkout. **Do not edit it here**: fix it
-> upstream (a CI gate there checks it against the real client API) and copy
-> the section back. In your own project you may of course extend this file
-> with your app's own rules — put those ABOVE this line so a re-sync never
-> overwrites them.
+> so this repo needs no framework checkout. It is **generated**, by
+> `npm run agents`, and `npm run check:agents` fails while it is out of date —
+> so do not edit it here, because the next run would overwrite you. Fix it
+> upstream (a CI gate there checks it against the real client API) and
+> regenerate. In your own project you may of course extend this file with your
+> app's own rules — put those ABOVE this line, where the generator does not
+> reach.
 >
 > **Three sentences deviate on purpose**, because the mirrored text names
 > commands and files that exist in the framework repository and not here:
@@ -91,14 +97,13 @@ writing or changing any app class.
 > 3. §8 "Formatters": `npm run check:formatter` is the framework's own gate,
 >    so the sentence says so.
 >
-> You do not have to re-apply those by hand, and you should not: they are
-> **declared upstream**, in `.github/scripts/shared-file-gate.mjs`'s
-> `DEVIATIONS`, and that gate now compares this file against the guide with
-> them applied. So the rest is held verbatim — a sentence changed here without
-> being changed there turns the framework's CI red, and so does a deviation
-> whose upstream sentence was edited away. Re-syncing is: take the guide from
-> `## 1. The model in one paragraph` down, apply the three, replace everything
-> below this block.
+> You never re-apply those by hand. They are **declared**, in
+> `scripts/app-guide-deviations.mjs`, which is itself abap2UI5's
+> `.github/shared/app-guide-deviations.mjs` copied here and held byte-equal:
+> the generator applies that list to write this half, and the framework's
+> `npm run check:shared` applies the same list to check it. Two programs, one
+> declaration, and a deviation whose upstream sentence was edited away fails
+> both rather than being quietly skipped.
 
 ## 1. The model in one paragraph
 
