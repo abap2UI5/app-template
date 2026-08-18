@@ -12,7 +12,11 @@
  * it, and nothing over there can tell the difference between "deliberately
  * dropped" and "forgotten".
  *
- * Which is why this runs in `npm run check`, offline, with no dependencies.
+ * Which is why CI runs it next to the framework pin, before `npm ci`: offline,
+ * with no dependencies, on a claim no downstream repository can verify.
+ *
+ * It also carries one check with an expiry date - the `overrides` block that
+ * makes the documented linter/render-runtime pairing installable. See below.
  *
  *   node scripts/check-template.mjs        (npm run check:template)
  */
@@ -85,6 +89,36 @@ for (const target of SPEC.substitutions.repo) {
   const pattern = target.element ? new RegExp(`<${target.element}>`) : new RegExp(`"${target.jsonKey}":`);
   if (!pattern.test(text)) {
     problems.push(`substitutions.repo names ${target.element ? `<${target.element}>` : `"${target.jsonKey}"`} in "${target.file}", which is not there`);
+  }
+}
+
+/* One more claim this repository makes about itself, and the only one with an
+ * expiry date. `@abap2ui5/linter` and `@abap2ui5/render-runtime` are cut from
+ * one tag and the render gate wants the same minor line - but the PUBLISHED
+ * linter 0.2.1 declares `peerOptional render-runtime ^0.1.0`, so the pairing
+ * its own README asks for is one `npm ci` refuses. package.json carries an
+ * `overrides` block for exactly that, and an override nobody remembers to
+ * remove is its own kind of drift. The lockfile records the linter's peer
+ * range, so this is checkable offline, before any install. */
+const lockFile = path.join(ROOT, 'package-lock.json');
+if (fs.existsSync(lockFile)) {
+  const lock = JSON.parse(fs.readFileSync(lockFile, 'utf8'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const override = pkg.overrides?.['@abap2ui5/linter']?.['@abap2ui5/render-runtime'];
+  const peer = lock.packages?.['node_modules/@abap2ui5/linter']
+    ?.peerDependencies?.['@abap2ui5/render-runtime'];
+  const want = pkg.devDependencies?.['@abap2ui5/render-runtime'];
+  // The range is a literal comparison on purpose: "does it mention the major
+  // line we ask for" is all this needs, and it beats a semver dependency in a
+  // script that has to run before `npm ci`.
+  const wantMajor = String(want || '').replace(/^[\^~]/, '').split('.').slice(0, 2).join('.');
+  if (override && peer && peer.includes(wantMajor)) {
+    problems.push(`the published @abap2ui5/linter now accepts render-runtime ${peer} - `
+      + "package.json's `overrides` block for it is obsolete, remove it and re-run `npm install`");
+  }
+  if (!override && peer && !peer.includes(wantMajor)) {
+    problems.push(`the published @abap2ui5/linter accepts render-runtime ${peer}, not the ${want} `
+      + 'this repository asks for - `npm ci` will refuse the pairing without an `overrides` block');
   }
 }
 

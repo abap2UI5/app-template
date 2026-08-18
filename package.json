@@ -22,5 +22,10 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "@abap2ui5/linter": {
+      "@abap2ui5/render-runtime": "$@abap2ui5/render-runtime"
+    }
   }
 }
