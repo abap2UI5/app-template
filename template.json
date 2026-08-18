@@ -1,0 +1,52 @@
+{
+  "note": "What it takes to turn this template into somebody's project: which files a new project gets, and which text in them carries a name. THE source of truth for that - scripts/rename.mjs executes it here, abap2UI5/ai-mcp's lib/scaffold.mjs executes it over a checkout, and abap2UI5/vscode-extension snapshots it. Three programs, one description. Add a file or a substitution HERE.",
+  "placeholderClass": "zcl_app_001",
+  "files": {
+    "shared": [
+      "AGENTS.md",
+      "abaplint.jsonc",
+      "abap2ui5lint.jsonc",
+      "package.json",
+      ".gitattributes",
+      ".gitignore",
+      ".github/workflows/check.yml",
+      ".github/dependabot.yml",
+      ".claude/settings.json"
+    ],
+    "named": [
+      ".abapgit.xml",
+      "src/package.devc.xml",
+      "src/zcl_app_001.clas.abap",
+      "src/zcl_app_001.clas.xml"
+    ],
+    "templateOwn": {
+      "README.md": "describes the template itself; a project writes its own",
+      "LICENSE": "the template's copyright line, not the project's",
+      "package-lock.json": "enormous, and `npm install` regenerates it",
+      "scripts/rename.mjs": "has nothing left to rename once it has renamed",
+      "scripts/check-pin.mjs": "gates a pin in files a project does not get"
+    }
+  },
+  "substitutions": {
+    "class": {
+      "files": [
+        "src/zcl_app_001.clas.abap",
+        "src/zcl_app_001.clas.xml",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "cases": ["lower", "upper"],
+      "renamesPath": true,
+      "why": "The ABAP source writes the name lower case and the sidecar's CLSNAME upper case. Renaming half of it produces an object abapGit imports under one name and ABAP activates under another - which is the whole reason this is a script and not an instruction.",
+      "rule": "^[zy]c[lx]_[a-z0-9_]{1,26}$",
+      "maxLength": 30
+    },
+    "packageText": [
+      { "file": "src/package.devc.xml", "element": "CTEXT" }
+    ],
+    "repo": [
+      { "file": ".abapgit.xml", "element": "NAME" },
+      { "file": "package.json", "jsonKey": "name" }
+    ]
+  }
+}

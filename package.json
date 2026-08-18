@@ -10,7 +10,9 @@
     "check:abap2ui5:fast": "abap2ui5lint --no-render",
     "fix": "abap2ui5lint --fix",
     "check:pin": "node scripts/check-pin.mjs",
-    "rename": "node scripts/rename.mjs"
+    "check:template": "node scripts/check-template.mjs",
+    "rename": "node scripts/rename.mjs",
+    "test": "npm run check"
   },
   "license": "MIT",
   "devDependencies": {

@@ -15,8 +15,27 @@ with the validation gates preconfigured.
 | `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.143.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor for this template: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
 | `.github/workflows/check.yml` | CI: abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
-| `scripts/rename.mjs` | `npm run rename -- --class zcl_my_app` — makes the template yours (class, sidecar `CLSNAME`, package text, repo name) |
+| `template.json` | **What it takes to make this template somebody's project**: which files a project gets (`files.shared` / `files.named`, and what stays here with a reason), the placeholder class, and the substitutions. Three programs execute this one description — see below |
+| `scripts/rename.mjs` | `npm run rename -- --class zcl_my_app` — makes the template yours (class, sidecar `CLSNAME`, package text, repo name), by executing `template.json` |
 | `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in three places and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
+| `scripts/check-template.mjs` | `npm run check:template` — `template.json` has to describe this repository: every file it lists is here, every file here is listed or excluded with a reason, every substitution target exists |
+
+### `template.json` — one description, three executors
+
+This template is personalised in three places, and only one of them is here:
+
+| Who | How |
+| --- | --- |
+| this repository | `npm run rename` rewrites the files in place |
+| [ai-mcp](https://github.com/abap2UI5/ai-mcp) | `scaffold_app` reads a checkout and hands an agent the files |
+| [the VS Code extension](https://github.com/abap2UI5/vscode-extension) | "New Project from Template" writes them into a folder, from a snapshot |
+
+The three run in different worlds — in place, in memory, through the VS Code
+file API — and that is fine. What must not differ is **which files** and
+**which names in them**, and that is what `template.json` is. Add a file to
+this repository and it belongs in `files.shared`, `files.named` or
+`files.templateOwn` (with the reason); `npm run check:template` fails while it
+is in none of them. Do not re-type the list in any of the three consumers.
 
 ## Build & verify — run before every commit
 
@@ -28,6 +47,8 @@ npm run check                   # abaplint + linter, expect 0 issues
 npm run check:abap2ui5:fast     # fast loop: linter without the render gate
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release this repo names, in one place
+npm run check:template          # template.json still describes this repository
+npm test                        # the same as `npm run check`, so `npm test` works here too
 ```
 
 Both gates run offline from any SAP system (abaplint clones the framework on
