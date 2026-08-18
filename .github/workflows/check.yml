@@ -87,7 +87,14 @@ jobs:
       - name: App guide mirror
         run: npm run check:agents
 
-      - run: npm ci
+      # id, because the job-summary step below runs `npx abap2ui5lint` from
+      # the devDependency this installs. Gated on this outcome rather than on
+      # `always()`: without the install npx falls through to the registry,
+      # where the package does not exist, and the run's last words are
+      # `404 'abap2ui5lint@*' is not in this registry` - which names neither
+      # the real failure nor this step.
+      - id: install
+        run: npm ci
 
       - name: abaplint (expect 0 issues)
         run: npx abaplint abaplint.jsonc
@@ -110,5 +117,5 @@ jobs:
       # runs from the repo's own devDependency: the action reports into the log
       # and onto the diff, and has no input that writes a job summary.
       - name: Job summary
-        if: always()
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npx abap2ui5lint --no-render --advisory --no-progress --format markdown >> "$GITHUB_STEP_SUMMARY"
