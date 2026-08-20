@@ -1,0 +1,67 @@
+name: pin-freshness
+
+# check:pin runs on every pull request, and its network half is deliberately a
+# NOTICE: somebody who started a project from this template must not get a red
+# build because abap2UI5 published a release. That is right for them and wrong
+# for whoever maintains the template, because it means a stale pin is only ever
+# reported on a run somebody else triggered - and on a template repository,
+# weeks pass without one.
+#
+# The pin is the thing this repository is FOR. A starter that pins a release
+# two versions back teaches an API surface that has moved, and the reader who
+# follows it hits the gap, not us.
+#
+# So: weekly, with --strict, which turns the notice into a failure, and an
+# issue rather than a red badge. Network trouble is still a loud skip in strict
+# mode - a freshness check that goes red because github.com is unreachable
+# reports the wrong fact.
+
+on:
+  schedule:
+    - cron: '53 6 * * 1'   # Mondays 06:53 UTC — the slot the app-template bumps already use
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # Dependency-free by design, like the three gates check.yml runs before
+      # `npm ci` — see that workflow's header.
+      - name: Is the pinned release still the newest one
+        run: node scripts/check-pin.mjs --strict | tee pin.txt
+
+      - name: Open or update the stale-pin issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -e
+          title="the template pins a framework release that is no longer the newest"
+          body="scripts/check-pin.mjs --strict found a newer abap2UI5 release than the one this template pins: ${RUN_URL}
+
+          \`\`\`
+          $(cat pin.txt 2>/dev/null || echo 'see the run log')
+          \`\`\`
+
+          The release is named in three places — \`abaplint.jsonc\` (\`branch\`), \`README.md\` and \`AGENTS.md\`. Move them together and run \`npm run check\`: a release the starter cannot compile against is exactly what the pin exists to surface.
+
+          This issue is updated by each stale weekly run; close it when the run is green again."
+          existing=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still stale: ${RUN_URL}"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
