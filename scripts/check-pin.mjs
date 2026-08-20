@@ -41,6 +41,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const STRICT = process.argv.includes('--strict');
 const API = 'https://api.github.com/repos/abap2UI5/abap2UI5/releases/latest';
 
 /* The framework publishes each release twice: `1.143.0` and, minutes later,
@@ -123,8 +124,17 @@ if (!latest) {
   const note = `abap2UI5 ${latest} is out; this repository pins ${distinct[0]}. `
     + 'Bump the three places together and run `npm run check` - a release you cannot compile against is what the pin exists to show you.';
   console.log(`newest release of abap2UI5/abap2UI5: ${latest}`);
-  // Visible on the run's own page, not only in the log - and still not a failure.
-  if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Framework pin::${note}`);
+  /* Two audiences, one fact. For somebody who STARTED a project from this
+   * template, a newer framework release is news, not a defect - their build
+   * must not go red because another repository published something. So the
+   * default stays a notice.
+   *
+   * For whoever maintains the template it is the whole point of the pin, and a
+   * notice on a pull request nobody opened that week is a notice nobody reads.
+   * --strict is how the scheduled freshness run opts into failing, so a stale
+   * pin becomes an issue with a name on it instead of a line in a log. */
+  if (STRICT) problems.push(note);
+  else if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Framework pin::${note}`);
   else console.log(`  note: ${note}`);
 } else {
   console.log(`newest release of abap2UI5/abap2UI5: ${latest} - the pin is current`);

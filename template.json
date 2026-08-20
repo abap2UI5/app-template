@@ -4,6 +4,7 @@
   "files": {
     "shared": [
       "AGENTS.md",
+      "CLAUDE.md",
       "abaplint.jsonc",
       "abap2ui5lint.jsonc",
       "package.json",
@@ -27,8 +28,9 @@
       "scripts/rename.mjs": "has nothing left to rename once it has renamed",
       "scripts/check-pin.mjs": "gates a pin in files a project does not get",
       "scripts/check-template.mjs": "gates this description against this repository",
-    "scripts/generate-agents.mjs": "regenerates the half of AGENTS.md this template mirrors from the framework guide; a project has the result, not the generator",
-    "scripts/app-guide-deviations.mjs": "abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here for that generator - the guide's deviations are the template's, not a project's"
+      "scripts/generate-agents.mjs": "regenerates the half of AGENTS.md this template mirrors from the framework guide; a project has the result, not the generator",
+      "scripts/app-guide-deviations.mjs": "abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here for that generator - the guide's deviations are the template's, not a project's",
+      ".github/workflows/pin-freshness.yml": "weekly maintenance of the TEMPLATE's own framework pin, reported as an issue on this repository; a project decides its own pin policy and gets check.yml, which already runs check:pin on every pull request"
     }
   },
   "substitutions": {
