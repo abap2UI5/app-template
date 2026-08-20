@@ -4,6 +4,7 @@
   "files": {
     "shared": [
       "AGENTS.md",
+      "CLAUDE.md",
       "abaplint.jsonc",
       "abap2ui5lint.jsonc",
       "package.json",
