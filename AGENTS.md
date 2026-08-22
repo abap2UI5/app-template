@@ -659,7 +659,7 @@ The same tree, with the subtree held in a variable:
   F9 launches the class in an embedded preview against a real system.
 - **Worked examples**, three catalogues with the same row shape, so one search
   reads all of them: curated apps for "has somebody built this pattern" in
-  [abap2UI5/samples](https://github.com/abap2UI5/samples), 416 gate-verified
+  [abap2UI5/samples](https://github.com/abap2UI5/samples), 622 gate-verified
   demo-kit ports for "how is this control expressed" in
   [samples-controls](https://github.com/abap2UI5/samples-controls) (`src/`), and
   apps that need something from your stack — OData, RAP, APC, the launchpad —
