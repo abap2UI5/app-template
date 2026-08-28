@@ -24,11 +24,15 @@
 #   workflow, and not by the action.
 #
 #   That does mean the linter version CI runs comes from the action pin, not
-#   from package-lock.json. The pin below is the action's `v0.2.1` release,
-#   which is the same 0.2.x line `package.json` depends on - keep the two
+#   from package-lock.json. The pin below is the action's `v0.5.1` release,
+#   which is the same 0.5.x line `package.json` depends on - keep the two
 #   moving together, or a local `npm run check` and this job can eventually
-#   disagree about a rule. (`abap2UI5/linter@v0` is the shorter, always-current
-#   form; this repo pins, see below.)
+#   disagree about a rule. They HAD parted: the pin sat on v0.2.1 while the
+#   devDependency asked for ^0.2.2, one patch apart in the direction this
+#   comment warns about. The template's own check-template gate now checks the
+#   pairing rather than asking anyone to remember it.
+#   (`abap2UI5/linter@v0` is the shorter, always-current form; this repo pins,
+#   see below.)
 #
 # The actions below are pinned to a COMMIT rather than to `@v7`/`@v0`, and the
 # repository you make from this template inherits that. A major tag is a
@@ -65,27 +69,14 @@ jobs:
 
       # No dependencies, so it runs before the install: the framework release
       # this repository pins and the releases its prose names have to be one
-      # number. It also reports a newer framework release when it can reach
-      # GitHub - as a notice, never as a failure. See scripts/check-pin.mjs.
+      # number. This step, and every script it names, is part of what a project
+      # made from this template receives - see scripts/check-template.mjs, which
+      # fails when a handed-out file invokes one that stays behind.
+      #
+      # It also reports a newer framework release when it can reach GitHub - as
+      # a notice, never as a failure. See scripts/check-pin.mjs.
       - name: Framework pin
         run: npm run check:pin
-
-      # Also dependency-free, and also about THIS repository rather than about
-      # a project made from it: template.json is what abap2UI5/mcp-server and the
-      # VS Code extension build a project from, so a file listed there and not
-      # here (or here and not there) is a project somebody else hands out with
-      # a hole in it. See scripts/check-template.mjs.
-      - name: Template description
-        run: npm run check:template
-
-      # Dependency-free as well, and about the half of AGENTS.md that is not
-      # written here: everything from "1. The model in one paragraph" down is
-      # abap2UI5's app-building guide, generated into this file by
-      # `npm run agents` from the guide plus the declared deviations. This
-      # fails when the two have parted - and says so and passes when the guide
-      # cannot be reached at all. See scripts/generate-agents.mjs.
-      - name: App guide mirror
-        run: npm run check:agents
 
       # id, because the job-summary step below runs `npx abap2ui5lint` from
       # the devDependency this installs. Gated on this outcome rather than on
@@ -110,7 +101,7 @@ jobs:
       # build/screenshots` (photographs every checked view, for an
       # upload-artifact step to publish - it runs even when the check failed).
       - name: abap2UI5-linter (property gate + headless render)
-        uses: abap2UI5/linter@599cecc476fc963b12429174f0da495b4f61087f # v0.2.1
+        uses: abap2UI5/linter@8ae804f2db216f6cff629194ebd46db3af01fa9c # v0.5.1
 
       # The same report as markdown on the run's own page - property gate only,
       # since the step above already decided whether the views load. This one

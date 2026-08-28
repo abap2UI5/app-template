@@ -12,7 +12,9 @@
       ".gitignore",
       ".github/workflows/check.yml",
       ".github/dependabot.yml",
-      ".claude/settings.json"
+      ".claude/settings.json",
+      "package-lock.json",
+      "scripts/check-pin.mjs"
     ],
     "named": [
       ".abapgit.xml",
@@ -24,13 +26,13 @@
       "README.md": "describes the template itself; a project writes its own",
       "CONTRIBUTING.md": "how to contribute to the template, not to a project made from it",
       "LICENSE": "the template's copyright line, not the project's",
-      "package-lock.json": "enormous, and `npm install` regenerates it",
-      "scripts/rename.mjs": "has nothing left to rename once it has renamed",
-      "scripts/check-pin.mjs": "gates a pin in files a project does not get",
-      "scripts/check-template.mjs": "gates this description against this repository",
+      "scripts/rename.mjs": "has nothing left to rename once it has renamed - and it reads template.json, which a project does not get either. Invoked as `node scripts/rename.mjs`, not through package.json, because every script in the SHARED package.json has to resolve to a shared file",
+      "scripts/check-template.mjs": "gates this description against this repository; a project has no template.json to gate. Runs from .github/workflows/template-self-check.yml, which stays here too",
       "scripts/generate-agents.mjs": "regenerates the half of AGENTS.md this template mirrors from the framework guide; a project has the result, not the generator",
       "scripts/app-guide-deviations.mjs": "abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here for that generator - the guide's deviations are the template's, not a project's",
-      ".github/workflows/pin-freshness.yml": "weekly maintenance of the TEMPLATE's own framework pin, reported as an issue on this repository; a project decides its own pin policy and gets check.yml, which already runs check:pin on every pull request"
+      ".github/workflows/pin-freshness.yml": "weekly maintenance of the TEMPLATE's own framework pin, reported as an issue on this repository; a project decides its own pin policy and gets check.yml, which runs check:pin on every pull request",
+      ".github/workflows/template-self-check.yml": "the gates that are about THIS repository rather than about a project made from it - template.json's description, the AGENTS.md mirror, and the unit tests for scripts/. check.yml used to run the first two and a project inherited steps it could not execute",
+      "scripts/test": "unit tests for the scripts above, which a project does not get"
     }
   },
   "substitutions": {
@@ -38,21 +40,32 @@
       "files": [
         "src/zcl_app_001.clas.abap",
         "src/zcl_app_001.clas.xml",
-        "README.md",
         "AGENTS.md"
       ],
-      "cases": ["lower", "upper"],
+      "cases": [
+        "lower",
+        "upper"
+      ],
       "renamesPath": true,
       "why": "The ABAP source writes the name lower case and the sidecar's CLSNAME upper case. Renaming half of it produces an object abapGit imports under one name and ABAP activates under another - which is the whole reason this is a script and not an instruction.",
-      "rule": "^[zy]c[lx]_[a-z0-9_]{1,26}$",
+      "rule": "^z(cl|cx)_[a-z0-9_]{1,26}$",
       "maxLength": 30
     },
     "packageText": [
-      { "file": "src/package.devc.xml", "element": "CTEXT" }
+      {
+        "file": "src/package.devc.xml",
+        "element": "CTEXT"
+      }
     ],
     "repo": [
-      { "file": ".abapgit.xml", "element": "NAME" },
-      { "file": "package.json", "jsonKey": "name" }
+      {
+        "file": ".abapgit.xml",
+        "element": "NAME"
+      },
+      {
+        "file": "package.json",
+        "jsonKey": "name"
+      }
     ]
   }
 }

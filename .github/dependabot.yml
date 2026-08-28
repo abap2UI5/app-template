@@ -8,6 +8,10 @@
 # apply. This is the smallest thing that keeps it current: one grouped pull
 # request a week, with your own checks deciding.
 #
+# Weekly rather than monthly on purpose: a month of gate releases arrives as one
+# lump nobody reviews line by line, and the two gates here move often enough
+# that the lump is the normal case rather than the exception.
+#
 # Change the day, widen the interval, or delete the file - it is yours now.
 version: 2
 
@@ -15,7 +19,7 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
       time: "06:30"
     open-pull-requests-limit: 5
     groups:
@@ -29,7 +33,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
       time: "06:30"
     open-pull-requests-limit: 5
     groups:

@@ -8,19 +8,16 @@
     "check:abap": "abaplint abaplint.jsonc",
     "check:abap2ui5": "abap2ui5lint",
     "check:abap2ui5:fast": "abap2ui5lint --no-render",
-    "fix": "abap2ui5lint --fix",
+    "check:all": "npm run check:pin && npm run check",
     "check:pin": "node scripts/check-pin.mjs",
-    "check:template": "node scripts/check-template.mjs",
-    "agents": "node scripts/generate-agents.mjs",
-    "check:agents": "node scripts/generate-agents.mjs --check",
-    "rename": "node scripts/rename.mjs",
-    "test": "npm run check"
+    "fix": "abap2ui5lint --fix",
+    "test": "npm run check:all"
   },
   "license": "MIT",
   "devDependencies": {
-    "@abap2ui5/linter": "^0.2.2",
-    "@abap2ui5/render-runtime": "^0.2.2",
-    "@abaplint/cli": "^2.120.23"
+    "@abap2ui5/linter": "^0.5.1",
+    "@abap2ui5/render-runtime": "^0.5.1",
+    "@abaplint/cli": "^2.120.38"
   },
   "engines": {
     "node": ">=22"

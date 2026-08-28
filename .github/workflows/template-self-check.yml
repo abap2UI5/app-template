@@ -1,0 +1,51 @@
+# The gates that are about THIS repository rather than about a project made
+# from it. They used to be three steps inside check.yml - which is a file the
+# template hands out, so every generated project inherited steps whose scripts
+# stayed behind and whose first CI run died on MODULE_NOT_FOUND.
+#
+# The split is the rule now, not the habit: check.yml holds what a project can
+# actually execute, this file holds the rest, and scripts/check-template.mjs
+# fails when a handed-out file invokes one that is not handed out with it.
+name: template-self-check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: template-self-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      # template.json is what abap2UI5/mcp-server and the VS Code extension build
+      # a project from, so a file listed there and not here (or here and not
+      # there) is a project somebody else hands out with a hole in it. It also
+      # gates the closure that used to be missing: every file the shared set
+      # invokes has to be in the shared set.
+      - name: Template description
+        run: node scripts/check-template.mjs
+
+      # Everything in AGENTS.md from "1. The model in one paragraph" down is
+      # abap2UI5's app-building guide, generated into that file from the guide
+      # plus the declared deviations. This fails when the two have parted - and
+      # says so and passes when the guide cannot be reached at all.
+      - name: App guide mirror
+        run: node scripts/generate-agents.mjs --check
+
+      # The four programs above parse files by regex, and a pattern that stops
+      # matching turns its gate into one that passes by checking nothing.
+      - name: Script unit tests
+        run: node --test scripts/test/*.test.mjs
