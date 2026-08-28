@@ -11,53 +11,33 @@ with the validation gates preconfigured.
 | --- | --- |
 | `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
 | `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
-| `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`, on the same minor line - they are cut from one tag) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions. `npm run check:template` guards the pairing in both directions: it fails if the published linter's peer range stops accepting the render-runtime line this repository asks for (then an `overrides` block is needed), and it fails again once such a block has become obsolete. Linter 0.2.2 widened the range to `^0.1.0 || ^0.2.0`, so the block that carried the 0.2.1 pairing is gone |
-| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.143.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor for this template: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
+| `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`, on the same minor line — they are cut from one tag) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
+| `package-lock.json` | Committed on purpose: `npm ci` reads it, so the gate versions CI runs are the ones you ran locally |
+| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.143.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
-| `.github/workflows/check.yml` | CI: abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
-| `template.json` | **What it takes to make this template somebody's project**: which files a project gets (`files.shared` / `files.named`, and what stays here with a reason), the placeholder class, and the substitutions. Three programs execute this one description — see below |
-| `scripts/rename.mjs` | `npm run rename -- --class zcl_my_app` — makes the template yours (class, sidecar `CLSNAME`, package text, repo name), by executing `template.json` |
-| `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in three places and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
-| `scripts/check-template.mjs` | `npm run check:template` — `template.json` has to describe this repository: every file it lists is here, every file here is listed or excluded with a reason, every substitution target exists |
-| `scripts/generate-agents.mjs` | `npm run agents` / `npm run check:agents` — writes the mirrored half of this file (everything below the provenance block) from the framework's app-building guide, and fails when the two have parted. Nothing below that line is edited here |
-| `scripts/app-guide-deviations.mjs` | The sentences the mirror is expected to say differently, and the two functions that execute them. **Not this repository's file**: it is abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here and held byte-equal by that repository's `npm run check:shared`, because its gate applies the same list to compare while the generator above applies it to write |
-
-### `template.json` — one description, three executors
-
-This template is personalised in three places, and only one of them is here:
-
-| Who | How |
-| --- | --- |
-| this repository | `npm run rename` rewrites the files in place |
-| [mcp-server](https://github.com/abap2UI5/mcp-server) | `scaffold_app` reads a checkout and hands an agent the files |
-| [the VS Code extension](https://github.com/abap2UI5/vscode-extension) | "New Project from Template" writes them into a folder, from a snapshot |
-
-The three run in different worlds — in place, in memory, through the VS Code
-file API — and that is fine. What must not differ is **which files** and
-**which names in them**, and that is what `template.json` is. Add a file to
-this repository and it belongs in `files.shared`, `files.named` or
-`files.templateOwn` (with the reason); `npm run check:template` fails while it
-is in none of them. Do not re-type the list in any of the three consumers.
+| `.github/workflows/check.yml` | CI: the framework pin, then abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
+| `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in more than one place and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
 
 ## Build & verify — run before every commit
 
 ```bash
-npm ci                          # once - installs both gates
+npm ci                          # once - installs both gates from the lockfile
 npx playwright install chromium # once - only the render gate needs a browser
 
 npm run check                   # abaplint + linter, expect 0 issues
 npm run check:abap2ui5:fast     # fast loop: linter without the render gate
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release this repo names, in one place
-npm run check:template          # template.json still describes this repository
-npm run check:agents            # the mirrored half of AGENTS.md matches the guide
-npm run agents                  # ...and this takes the guide's current text
-npm test                        # the same as `npm run check`, so `npm test` works here too
+npm run check:all               # everything CI runs: the pin, then both gates
+npm test                        # the same as `npm run check:all`
 ```
 
+`npm run check:all` is the local equivalent of the CI job — a green run of it
+means CI passes. (`npm run check` is the two gates alone and skips the pin,
+which is why the two scripts exist separately.)
+
 Both gates run offline from any SAP system (abaplint clones the framework on
-first use, so it needs network). CI runs exactly these versions — a local
-green run means CI passes. Deploy to a system via
+first use, so it needs network). Deploy to a system via
 [abapGit](https://abapgit.org/) and start an app with
 `<icf-endpoint>?app_start=zcl_app_001`.
 
@@ -68,7 +48,10 @@ same linter findings as editor diagnostics with quick fixes, and
 deploy → build → run-headless-and-screenshot loop.
 
 Conventions: every `.clas.abap` needs its `.clas.xml` sidecar (UTF-8 **with
-BOM**, LF endings — copy an existing one); class names stay in `ZCL_*`; the
+BOM**, LF endings — copy an existing one; `abaplint.jsonc` enables `xml_bom`
+and `xml_consistency`, so a hand-edited sidecar fails the gate rather than the
+next abapGit pull); class names stay in `ZCL_*`/`ZCX_*`, which is both
+`object_naming` in `abaplint.jsonc` and the rule the rename step enforces; the
 whole repo is in English.
 
 The rest of this file is the complete app-building reference — read it before
@@ -77,13 +60,12 @@ writing or changing any app class.
 > **Provenance:** everything from "1. The model in one paragraph" down is a
 > mirror of `docs/agents/building-apps.md` in
 > [abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5) — the copy exists
-> so this repo needs no framework checkout. It is **generated**, by
-> `npm run agents`, and `npm run check:agents` fails while it is out of date —
-> so do not edit it here, because the next run would overwrite you. Fix it
-> upstream (a CI gate there checks it against the real client API) and
-> regenerate. In your own project you may of course extend this file with your
-> app's own rules — put those ABOVE this line, where the generator does not
-> reach.
+> so this repo needs no framework checkout. It is **generated**, in
+> [abap2UI5/app-template](https://github.com/abap2UI5/app-template), from the
+> guide plus a declared list of deviations. Fix it upstream (a CI gate there
+> checks it against the real client API) rather than here. In your own project
+> you may of course extend this file with your app's own rules — put those
+> ABOVE this line, where a regeneration does not reach.
 >
 > **Three sentences deviate on purpose**, because the mirrored text names
 > commands and files that exist in the framework repository and not here:
@@ -97,13 +79,11 @@ writing or changing any app class.
 > 3. §8 "Formatters": `npm run check:formatter` is the framework's own gate,
 >    so the sentence says so.
 >
-> You never re-apply those by hand. They are **declared**, in
-> `scripts/app-guide-deviations.mjs`, which is itself abap2UI5's
-> `.github/shared/app-guide-deviations.mjs` copied here and held byte-equal:
-> the generator applies that list to write this half, and the framework's
-> `npm run check:shared` applies the same list to check it. Two programs, one
-> declaration, and a deviation whose upstream sentence was edited away fails
-> both rather than being quietly skipped.
+> Those are not re-applied by hand. They are **declared**, and the template's
+> generator and abap2UI5's own `npm run check:shared` apply the same
+> declaration — one to write this half, one to check it — so a deviation whose
+> upstream sentence was edited away fails both rather than being quietly
+> skipped.
 
 ## 1. The model in one paragraph
 

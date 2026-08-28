@@ -43,7 +43,7 @@ name is in `.abapgit.xml`, the ABAP package still says *abap2UI5 app*, and the
 app is still `ZCL_APP_001`. One command changes all of it:
 
 ```bash
-npm run rename -- --class zcl_my_app --package "My App" --repo my-app
+node scripts/rename.mjs --class zcl_my_app --package "My App" --repo my-app
 ```
 
 Add `--dry` to see what it would touch first. It rewrites the class in the
