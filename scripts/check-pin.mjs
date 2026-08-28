@@ -50,7 +50,13 @@ const API = 'https://api.github.com/repos/abap2UI5/abap2UI5/releases/latest';
  * time after a release, and it is not a different version. */
 const versionOf = (tag) => tag.replace(/-\w+$/, '');
 
-/** Where the release number is written, and how to find it in each file. */
+/** Where the release number is written, and how to find it in each file.
+ *
+ * `optional` marks a place that exists in the TEMPLATE and legitimately does
+ * not exist in a project made from it. This file ships, so it runs in both:
+ * a project writes its own README (template.json excludes ours), and failing
+ * there would hand every new project a red gate on its first push. A file that
+ * IS present still has to agree - only its absence is forgiven. */
 const SITES = [
   {
     file: 'abaplint.jsonc',
@@ -61,6 +67,7 @@ const SITES = [
     file: 'README.md',
     what: 'the release the quick start tells you to install',
     re: /needs framework \*\*(\d+\.\d+\.\d+) or newer\*\*/,
+    optional: true,
   },
   {
     file: 'AGENTS.md',
@@ -75,6 +82,7 @@ const found = [];
 for (const site of SITES) {
   const full = path.join(ROOT, site.file);
   if (!fs.existsSync(full)) {
+    if (site.optional) continue;
     problems.push(`${site.file}: gone - this gate names it as one of the places the release is written`);
     continue;
   }
@@ -91,6 +99,10 @@ for (const site of SITES) {
 }
 
 const distinct = [...new Set(found.map((f) => f.version))];
+if (!found.length) {
+  problems.push('no file names a framework release at all - with every place optional or reshaped '
+    + 'this gate would pass by checking nothing');
+}
 if (distinct.length > 1) {
   problems.push(
     `the three places disagree: ${distinct.join(' / ')}\n`
