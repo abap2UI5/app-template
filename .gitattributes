@@ -1,8 +1,15 @@
+# Everything is text unless git proves otherwise; the extensions below then say
+# which line ending it comes back with. Without the fallback an extensionless
+# file (LICENSE) is left to the platform, and this repository's inherited
+# catalogue treats a changed line ending as a round-trip defect.
+* text=auto eol=lf
+
 *.abap text eol=lf
 *.xml text eol=lf
 *.json text eol=lf
 *.jsonc text eol=lf
 *.md text eol=lf
 *.yml text eol=lf
+*.mjs text eol=lf
 
 package-lock.json linguist-generated=true

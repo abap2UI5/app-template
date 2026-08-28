@@ -68,7 +68,7 @@
     //       noise rather than switched off one by one
     //   38  taste (short_case, if_in_if, yoda conditions, method_length,
     //       prefer_xsdbool, omit_parameter_name ...). Legitimate opinions, and
-    //       a template must not impose them on somebody else\'s codebase
+    //       a template must not impose them on somebody else's codebase
     //
     // Measured before adopting, not after: with these 56 on, abap2UI5/samples
     // (317 files, 152 real apps) reports 127 findings and every one is a
@@ -144,6 +144,10 @@
     // the CLSNAME in the .clas.xml against the file name - the mistake that
     // happens when you copy the starter class and rename half of it
     "xml_consistency": true,
+    // abapGit writes every .xml sidecar UTF-8 WITH a BOM and reads it back the
+    // same way; a sidecar saved without one comes back changed on the next
+    // pull, for everyone. AGENTS.md states the convention - this enforces it
+    "xml_bom": true,
     // the ABAP editor strips a trailing blank when it saves, so a line that
     // ends in one comes back changed on the next pull - for everyone
     "whitespace_end": true,
