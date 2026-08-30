@@ -101,7 +101,7 @@ Settings (paths, UI5 floor, distribution, rule severities, fail level) live in
 Prefer no project install? `npx @abap2ui5/linter src --no-render` runs the
 static half straight from npm.
 
-## Iterate without a SAP system
+## Iterate without an SAP system
 
 - **[VS Code extension](https://github.com/abap2UI5/vscode-extension)**
   ([Marketplace](https://marketplace.visualstudio.com/items?itemName=abap2ui5.abap2ui5),
