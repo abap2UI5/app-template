@@ -18,8 +18,8 @@
 // executors.
 //
 // Usage:
-//   npm run rename -- --class zcl_my_app [--package "My App"] [--repo my-app]
-//   npm run rename -- --class zcl_my_app --dry
+//   node scripts/rename.mjs --class zcl_my_app [--package "My App"] [--repo my-app]
+//   node scripts/rename.mjs --class zcl_my_app --dry
 //
 // Nothing outside this repository is touched, and it is a plain file rewrite:
 // `git diff` shows you everything before you commit it.
@@ -46,7 +46,7 @@ const newPackage = flag('package');
 const newRepo = flag('repo');
 
 if (!newClass) {
-  console.error(`usage: npm run rename -- --class <zcl_your_app> [--package "Your App"] [--repo your-app]
+  console.error(`usage: node scripts/rename.mjs --class <zcl_your_app> [--package "Your App"] [--repo your-app]
 
   --class    the app class, lower case. Must match this repository's
              object_naming rule (^ZCL_ or ^ZCX_) and stay within 30

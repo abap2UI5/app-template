@@ -7,6 +7,7 @@
       "CLAUDE.md",
       "abaplint.jsonc",
       "abap2ui5lint.jsonc",
+      ".nvmrc",
       "package.json",
       ".gitattributes",
       ".gitignore",

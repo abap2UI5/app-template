@@ -9,7 +9,7 @@
       "Bash(npm run check:abap2ui5:fast)",
       "Bash(npm run fix)",
       "Bash(npm run check:pin)",
-      "Bash(npm run rename:*)",
+      "Bash(node scripts/rename.mjs:*)",
       "Bash(npx abaplint:*)",
       "Bash(npx abap2ui5lint:*)",
       "Bash(npx playwright install:*)",
