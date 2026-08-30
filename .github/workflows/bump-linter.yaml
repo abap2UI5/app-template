@@ -1,0 +1,78 @@
+# The two gate packages come from npm, and package-lock.json decides which
+# version actually lints a project made from this template: `npm ci` reads
+# the lock, so a linter release reaches the template only when the lock
+# moves. Nothing moved it here - the range sat at ^0.5.1 while the linter
+# published 0.6.1, and a `^0.x` range cannot reach the next 0.x minor at
+# all, so every new project started life gated by an old linter without
+# anything saying so. The samples repositories already run this same weekly
+# move (their bump-linter.yaml is the model).
+#
+# The render runtime rides along deliberately: the two are ONE release with
+# one version (the linter's metadata snapshot is generated from exactly the
+# @openui5 version pinned over there), so bumping one alone is the drift the
+# split was allowed on condition of avoiding.
+#
+# The Action pin in check.yml (abap2UI5/linter@<sha> # vX.Y.Z) is NOT moved
+# here - it is a commit pin a human bumps deliberately, and the PR body
+# below says when it has fallen behind the npm pin.
+name: bump-linter
+
+on:
+  schedule:
+    - cron: '58 6 * * 1'   # Mondays 06:58 UTC - after samples' 06:41
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-linter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: '22'
+
+    - name: Move @abap2ui5/linter to the latest published version
+      id: pin
+      run: |
+        set -euo pipefail
+        # Resolved first and checked, because `npm view` prints nothing and
+        # still exits 0 when a package has no `latest` dist-tag - installing
+        # `@abap2ui5/linter@` would then resolve to whatever npm felt like.
+        VERSION=$(npm view @abap2ui5/linter version)
+        test -n "$VERSION"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        npm install --save-dev "@abap2ui5/linter@$VERSION" "@abap2ui5/render-runtime@$VERSION"
+        if git diff --quiet package.json package-lock.json; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    # The gate a generated project inherits: abaplint plus the abap2UI5
+    # linter over the starter class, render gate included. A linter release
+    # that rejects the template's own starter app fails here, not in every
+    # project made from the template.
+    - if: steps.pin.outputs.changed == 'true'
+      run: npx playwright install --with-deps chromium
+    - if: steps.pin.outputs.changed == 'true'
+      run: npm run check:all
+
+    - if: steps.pin.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+      with:
+        branch: bump-linter
+        title: 'chore: bump @abap2ui5/linter'
+        commit-message: 'chore: bump @abap2ui5/linter to ${{ steps.pin.outputs.version }}'
+        body: |
+          Weekly move of `@abap2ui5/linter` and `@abap2ui5/render-runtime` to
+          the latest version on npm (${{ steps.pin.outputs.version }}). The
+          template's own gates ran green in the workflow that opened this PR.
+
+          If `check.yml` still pins an older `abap2UI5/linter@<sha>` Action,
+          bump that pin in this PR too - the Action and the npm package are
+          the same release.

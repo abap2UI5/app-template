@@ -29,7 +29,7 @@ AI agents.
 1. Click **Use this template** on GitHub (or fork/clone).
 2. Install the [abap2UI5 framework](https://github.com/abap2UI5/abap2UI5) in
    your system via [abapGit](https://abapgit.org/), then install this repo
-   the same way. The starter app needs framework **1.143.0 or newer** — that
+   the same way. The starter app needs framework **1.144.0 or newer** — that
    is the release the local gates lint against, pinned in `abaplint.jsonc`.
 3. Create an ICF endpoint for the framework's HTTP handler (see the
    [documentation](https://abap2ui5.github.io/docs/)) and open
