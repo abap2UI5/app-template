@@ -209,15 +209,40 @@ if (fs.existsSync(lockFile)) {
   const peer = lock.packages?.['node_modules/@abap2ui5/linter']
     ?.peerDependencies?.['@abap2ui5/render-runtime'];
   const want = pkg.devDependencies?.['@abap2ui5/render-runtime'];
-  // The range is a literal comparison on purpose: "does it mention the major
-  // line we ask for" is all this needs, and it beats a semver dependency in a
-  // script that has to run before `npm ci`.
-  const wantMajor = String(want || '').replace(/^[\^~]/, '').split('.').slice(0, 2).join('.');
-  if (override && peer && peer.includes(wantMajor)) {
+  // No semver dependency in a script that has to run before `npm ci`, so
+  // this reads only the two range shapes the linter has ever published:
+  // `^x.y.z` and `>=a.b.c <d.e.f`. It used to be a substring test ("does the
+  // range mention the major line we ask for"), which called ^0.6.1 against
+  // `>=0.1.0 <0.7.0` uninstallable - a pairing npm accepts without a word.
+  const wantVersion = String(want || '').replace(/^[\^~]/, '');
+  const parse = (v) => v.split('.').map(Number);
+  const cmp = (a, b) => {
+    const [x, y] = [parse(a), parse(b)];
+    for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
+    return 0;
+  };
+  const accepts = (range, version) => {
+    const caret = range.match(/^\^(\d+\.\d+\.\d+)$/);
+    if (caret) {
+      const [maj, min] = parse(caret[1]);
+      const upper = maj === 0 ? `0.${min + 1}.0` : `${maj + 1}.0.0`;
+      return cmp(version, caret[1]) >= 0 && cmp(version, upper) < 0;
+    }
+    const ge = range.match(/>=\s*(\d+\.\d+\.\d+)/);
+    const lt = range.match(/<\s*(\d+\.\d+\.\d+)(?!\S*>)/);
+    if (ge || lt) {
+      return (!ge || cmp(version, ge[1]) >= 0) && (!lt || cmp(version, lt[1]) < 0);
+    }
+    // a shape this check has never seen: say so instead of guessing either way
+    problems.push(`the published @abap2ui5/linter's render-runtime peer range "${range}" is a shape `
+      + 'this check cannot read - teach scripts/check-template.mjs the new shape');
+    return true;
+  };
+  if (override && peer && accepts(peer, wantVersion)) {
     problems.push(`the published @abap2ui5/linter now accepts render-runtime ${peer} - `
       + "package.json's `overrides` block for it is obsolete, remove it and re-run `npm install`");
   }
-  if (!override && peer && !peer.includes(wantMajor)) {
+  if (!override && peer && !accepts(peer, wantVersion)) {
     problems.push(`the published @abap2ui5/linter accepts render-runtime ${peer}, not the ${want} `
       + 'this repository asks for - `npm ci` will refuse the pairing without an `overrides` block');
   }

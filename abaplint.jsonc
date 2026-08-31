@@ -29,7 +29,7 @@
       // Moving it: bump to the new tag, run `npm run check`. If the starter
       // class needs an API a release does not have yet, the pin is what tells
       // you - which is the whole point of having one.
-      "branch": "1.143.0",
+      "branch": "1.144.0",
       "files": "/src/**/*.*"
     }
   ],

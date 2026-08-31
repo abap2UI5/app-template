@@ -7,6 +7,7 @@
       "CLAUDE.md",
       "abaplint.jsonc",
       "abap2ui5lint.jsonc",
+      ".nvmrc",
       "package.json",
       ".gitattributes",
       ".gitignore",
@@ -31,6 +32,7 @@
       "scripts/generate-agents.mjs": "regenerates the half of AGENTS.md this template mirrors from the framework guide; a project has the result, not the generator",
       "scripts/app-guide-deviations.mjs": "abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here for that generator - the guide's deviations are the template's, not a project's",
       ".github/workflows/pin-freshness.yml": "weekly maintenance of the TEMPLATE's own framework pin, reported as an issue on this repository; a project decides its own pin policy and gets check.yml, which runs check:pin on every pull request",
+      ".github/workflows/bump-linter.yaml": "weekly maintenance of the TEMPLATE's own linter pin, gated by this repository's checks and opened as a PR here; a project decides its own bump policy the same way it decides its pin policy",
       ".github/workflows/template-self-check.yml": "the gates that are about THIS repository rather than about a project made from it - template.json's description, the AGENTS.md mirror, and the unit tests for scripts/. check.yml used to run the first two and a project inherited steps it could not execute",
       "scripts/test": "unit tests for the scripts above, which a project does not get"
     }
