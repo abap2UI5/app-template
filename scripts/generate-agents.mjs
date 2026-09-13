@@ -134,6 +134,12 @@ console.error(line === -1
     + `    here:      ${JSON.stringify(a[line] ?? '<end of file>')}\n`
     + `    the guide: ${JSON.stringify(b[line] ?? '<end of file>')}`);
 console.error(`\n  The guide is abap2UI5's ${SOURCE} (read from ${from}).`);
-console.error('  Run `npm run agents` to take it, or - if the change belongs in the guide -');
-console.error('  make it there first. Editing the mirrored half by hand is what this replaced.');
+/* `node …`, not `npm run …`: this file is templateOwn, and a script in the
+ * SHARED package.json may only invoke a file a generated project receives -
+ * the rule template.json states for rename.mjs and check-template.mjs enforces.
+ * An `agents` script here would be the fourth of the three that were removed
+ * once a generated project's first push tripped over them. */
+console.error('  Run `node scripts/generate-agents.mjs` to take it, or - if the change belongs');
+console.error('  in the guide - make it there first.');
+console.error('  Editing the mirrored half by hand is what this replaced.');
 process.exit(1);
