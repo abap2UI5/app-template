@@ -67,9 +67,13 @@ jobs:
       # abap2UI5's app-building guide, generated into that file from the guide
       # plus the declared deviations. This fails when the two have parted - and
       # says so and passes when the guide cannot be reached at all.
+      # The transcript goes to RUNNER_TEMP, never into the working tree:
+      # check-template.mjs walks this repository and is right to call an
+      # undeclared file undeclared - a report written next to the sources
+      # fails the very gate two steps below it.
       - name: App guide mirror
         id: mirror
-        run: node scripts/generate-agents.mjs --check 2>&1 | tee mirror.txt; exit "${PIPESTATUS[0]}"
+        run: node scripts/generate-agents.mjs --check 2>&1 | tee "$RUNNER_TEMP/guide-mirror.txt"; exit "${PIPESTATUS[0]}"
         shell: bash
 
       # The four programs above parse files by regex, and a pattern that stops
@@ -108,7 +112,7 @@ jobs:
             "What the run reported:" \
             "" \
             '```' \
-            "$(tail -c 3000 mirror.txt)" \
+            "$(tail -c 3000 "$RUNNER_TEMP/guide-mirror.txt")" \
             '```' \
             "" \
             "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
