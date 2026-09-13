@@ -8,17 +8,42 @@
 # fails when a handed-out file invokes one that is not handed out with it.
 name: template-self-check
 
+# The app guide mirror is the one gate here that depends on ANOTHER
+# repository: abap2UI5 owns docs/agents/building-apps.md, and the half of
+# AGENTS.md below "1. The model in one paragraph" is generated from it. So the
+# drift is created by a commit over there, while this workflow only ran on a
+# commit over HERE - and with no activity in this repository the mirror could
+# go stale for as long as nobody happened to push. That is what happened: two
+# guide changes (abap2UI5 #2731 and #2739) sat uncarried until somebody read
+# abap2UI5's own check:shared output and came looking, and the template handed
+# out a stale paragraph in the meantime.
+#
+# A daily run answers the question the push-triggered ones cannot: is the
+# mirror still the guide right now, whether or not anybody touched this
+# repository. generate-agents.mjs SAYS SO AND PASSES when it cannot reach the
+# guide at all, so an unreachable github.com is not a red night.
 on:
   push:
     branches: [ main ]
   pull_request:
+  schedule:
+    - cron: '31 4 * * *'   # daily, 04:31 UTC
+  workflow_dispatch:
 
+# The event is part of the group so a scheduled run and a push do not cancel
+# each other: cancel-in-progress is here to drop superseded runs of the SAME
+# kind.
 concurrency:
-  group: template-self-check-${{ github.ref }}
+  group: template-self-check-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
+# `issues: write` is for the scheduled channel at the end, and nothing else: a
+# scheduled run has no pull request to redden and no author watching, so a red
+# one would sit in the Actions tab. The issue is the tracked half, best-effort
+# on top of the job's own verdict, and never the reason the job is red.
 permissions:
   contents: read
+  issues: write
 
 jobs:
   self-check:
@@ -43,9 +68,77 @@ jobs:
       # plus the declared deviations. This fails when the two have parted - and
       # says so and passes when the guide cannot be reached at all.
       - name: App guide mirror
-        run: node scripts/generate-agents.mjs --check
+        id: mirror
+        run: node scripts/generate-agents.mjs --check 2>&1 | tee mirror.txt; exit "${PIPESTATUS[0]}"
+        shell: bash
 
       # The four programs above parse files by regex, and a pattern that stops
       # matching turns its gate into one that passes by checking nothing.
       - name: Script unit tests
         run: node --test scripts/test/*.test.mjs
+
+      # Only for the scheduled run, and only when the MIRROR is what failed. A
+      # failure on a pull request is already in front of the person who caused
+      # it; this is the one nobody would otherwise see.
+      #
+      # One issue, reopened and updated rather than a new one per night: a
+      # daily cron against a drift that takes days to carry across would file a
+      # duplicate every morning. `gh` failing here is a warning, never a
+      # failure - the job is red on its own account already.
+      - name: File the drift where somebody sees it
+        if: ${{ failure() && steps.mirror.outcome == 'failure' && github.event_name == 'schedule' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'The app guide mirror has drifted from abap2UI5'
+        run: |
+          set -uo pipefail
+          BODY=$(printf '%s\n' \
+            "The scheduled mirror check is red: the half of \`AGENTS.md\` below" \
+            "\"1. The model in one paragraph\" no longer matches" \
+            "[abap2UI5's app-building guide](https://github.com/abap2UI5/abap2UI5/blob/main/docs/agents/building-apps.md)," \
+            "which owns it." \
+            "" \
+            "Nothing here has to be at fault - the guide changed over there, and" \
+            "this half is GENERATED from it. Run \`node scripts/generate-agents.mjs\`" \
+            "and commit what it writes. If the change belongs in the guide instead," \
+            "make it in abap2UI5 first; editing the mirrored half by hand is what" \
+            "the generator replaced." \
+            "" \
+            "What the run reported:" \
+            "" \
+            '```' \
+            "$(tail -c 3000 mirror.txt)" \
+            '```' \
+            "" \
+            "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+          EXISTING=$(gh issue list --state all --search "$TITLE in:title" \
+            --json number,state --jq 'first(.[]) | "\(.number) \(.state)"' 2>/dev/null) || {
+            echo "::warning::could not reach the issue tracker - the run's own red is the only signal"
+            exit 0
+          }
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$TITLE" --body "$BODY" \
+              || echo "::warning::could not open the issue - the run's own red is the only signal"
+          else
+            NUMBER=${EXISTING%% *}
+            STATE=${EXISTING##* }
+            [ "$STATE" = "OPEN" ] || gh issue reopen "$NUMBER" || true
+            gh issue comment "$NUMBER" --body "$BODY" \
+              || echo "::warning::could not update issue #$NUMBER - the run's own red is the only signal"
+          fi
+
+      # The counterpart: a green scheduled run closes what the red ones opened,
+      # so the tracker says what is true now.
+      - name: Close it again once the mirror matches
+        if: ${{ success() && github.event_name == 'schedule' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'The app guide mirror has drifted from abap2UI5'
+        run: |
+          set -uo pipefail
+          NUMBER=$(gh issue list --state open --search "$TITLE in:title" \
+            --json number --jq 'first(.[]) | .number' 2>/dev/null) || exit 0
+          [ -n "$NUMBER" ] || exit 0
+          gh issue close "$NUMBER" --comment "The scheduled run is green again - the mirror matches the guide." || true
