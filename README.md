@@ -9,7 +9,10 @@ AI agents.
 ## What you get
 
 - **`src/zcl_app_001`** — a working starter app (input, bound table, event)
-  following the canonical template of `AGENTS.md`
+  following the canonical template of `AGENTS.md`, with an ABAP Unit test
+  include (`.clas.testclasses.abap`) that drives it through a test double for
+  `z2ui5_if_client` — first start, `SAVE` event, navigated roundtrip — the
+  shape every app test can take
 - **abaplint** — syntax/style checks with the abap2UI5 framework resolved as
   a dependency, no SAP system needed
 - **[abap2UI5-linter](https://github.com/abap2UI5/linter)** — checks every
@@ -23,10 +26,39 @@ AI agents.
 - **`AGENTS.md`** — the complete app-building reference for AI assistants,
   plus a `.claude/settings.json` permission allowlist so autonomous sessions
   run the gates without prompts
+- **`.claude/skills/`** — the framework's four agent skills (`build-an-app`,
+  `view-chain-layout`, `abap-check`, `ui5-check`), mirrored here so an agent
+  in your project loads the catalogue of what a green CI does not catch
+  without a framework checkout
+- **`npm run doctor`** — an offline check of the machine and the repository:
+  Node, both gates, a Chromium the render gate can launch, the pins, every
+  `.clas.xml` sidecar, the lint config — one line per check with the remedy
+- **`.mcp.json`, `.devcontainer/`, `.vscode/extensions.json`** — the abap2UI5
+  MCP server registered for Claude Code, a dev container with everything
+  installed on create, and the editor's extension recommendations
+
+## Starting a project
+
+Four ways, one result — all of them execute `template.json`, so a project
+started any way is the same project:
+
+1. **Use this template** on GitHub, then make it yours:
+   `node scripts/rename.mjs --class zcl_my_app --package "My App" --repo my-app`
+   (below).
+2. **`npm create abap2ui5-app@latest my-app -- --class zcl_my_app`** — no
+   GitHub account needed. The [`create-abap2ui5-app`](create/) package fetches
+   the template's files from `main`, applies the same substitutions and writes
+   the directory; `--package`, `--repo` and `--from <local checkout>` as with
+   `rename.mjs`.
+3. **VS Code: "New Project from Template"** in the
+   [abap2UI5 extension](https://github.com/abap2UI5/vscode-extension).
+4. **An MCP-capable agent**: the
+   [mcp-server](https://github.com/abap2UI5/mcp-server)'s `scaffold_app` tool.
 
 ## Quick start
 
-1. Click **Use this template** on GitHub (or fork/clone).
+1. Start a project one of the four ways above (**Use this template** on
+   GitHub is the first).
 2. Install the [abap2UI5 framework](https://github.com/abap2UI5/abap2UI5) in
    your system via [abapGit](https://abapgit.org/), then install this repo
    the same way. The starter app needs framework **1.144.0 or newer** — that
@@ -86,7 +118,17 @@ npm run check:abap              # abaplint only
 npm run check:abap2ui5:fast     # linter without the render gate (no browser)
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release named in one place only
+npm run doctor                  # when something above fails: what is missing, and the command that fixes it
 ```
+
+`doctor` is offline and takes a second. It checks Node against `.nvmrc`, that
+`npm ci` installed both gates on one minor line, that Playwright's Chromium is
+where the render gate will look (`npx playwright install chromium` otherwise),
+the framework pin (through `check-pin`), the linter Action pin in `check.yml`
+against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`,
+`WITH_UNIT_TESTS` for a class with tests), `abap2ui5lint.jsonc`, and — never
+failing — whether VS Code has the abap2UI5 extension and whether the pinned
+framework satisfies the linter's compatibility record, when it ships one.
 
 `check:pin` is the small gate around the one pin nothing else can move: the
 framework release in `abaplint.jsonc` is a tag inside an abaplint dependency,
@@ -101,6 +143,17 @@ Settings (paths, UI5 floor, distribution, rule severities, fail level) live in
 Prefer no project install? `npx @abap2ui5/linter src --no-render` runs the
 static half straight from npm.
 
+## Testing an app
+
+`src/zcl_app_001.clas.testclasses.abap` is an ABAP Unit test for the starter
+app and the pattern for your own: a local `ltd_client` with
+`INTERFACES z2ui5_if_client PARTIALLY IMPLEMENTED` whose attributes decide
+what `check_on_init( )` / `check_on_navigated( )` / `check_on_event( )` /
+`get_event( )` answer and which records the `view_display( )` XML and the
+`message_toast_display( )` texts. Run it on the system (ADT
+`Ctrl+Shift+F10`); locally abaplint compiles it against the framework and the
+linter skips test includes, so `npm run check` stays the gate it is.
+
 ## Iterate without an SAP system
 
 - **[VS Code extension](https://github.com/abap2UI5/vscode-extension)**
@@ -110,9 +163,13 @@ static half straight from npm.
   arrive as editor diagnostics with quick fixes while you type, plus
   completion for the UI5 API and the class's own binding paths, a template
   gallery for new apps, and the reconstructed XML view beside the code.
+  `.vscode/extensions.json` recommends it, and the dev container installs it.
 - **[mcp-server](https://github.com/abap2UI5/mcp-server)** — MCP server giving AI
   agents the full loop: deploy the class, build the transpiled Node backend,
-  run the app headless and look at a screenshot.
+  run the app headless and look at a screenshot. `.mcp.json` registers it for
+  Claude Code; the VS Code extension registers it for Copilot.
+- **Dev container** — open the repository in a container (`.devcontainer/`)
+  and `npm ci`, Playwright's Chromium and the three extensions are there.
 
 ## Learn more
 

@@ -1,0 +1,36 @@
+{
+  "name": "create-abap2ui5-app",
+  "version": "0.1.0",
+  "description": "Start an abap2UI5 app project from abap2UI5/app-template: npm create abap2ui5-app@latest my-app -- --class zcl_my_app",
+  "type": "module",
+  "bin": {
+    "create-abap2ui5-app": "index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "substitute.mjs",
+    "README.md"
+  ],
+  "keywords": [
+    "abap2ui5",
+    "abap",
+    "sap",
+    "ui5",
+    "create",
+    "template",
+    "scaffold"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abap2UI5/app-template.git",
+    "directory": "create"
+  },
+  "homepage": "https://github.com/abap2UI5/app-template#starting-a-project",
+  "bugs": {
+    "url": "https://github.com/abap2UI5/app-template/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
+}

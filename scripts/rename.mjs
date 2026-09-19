@@ -23,10 +23,17 @@
 //
 // Nothing outside this repository is touched, and it is a plain file rewrite:
 // `git diff` shows you everything before you commit it.
+//
+// The edits themselves - the class in both spellings, an XML element, a JSON
+// key - are in scripts/lib/substitute.mjs, because the published
+// `create-abap2ui5-app` package (create/) makes the same edits over the same
+// description and the two must not drift. This file decides WHICH files, from
+// template.json; that one decides HOW.
 
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyClass, applyElement, applyJsonKey, classNameProblem, substitutePath } from './lib/substitute.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -56,12 +63,9 @@ if (!newClass) {
   --dry      print what would change, write nothing`);
   process.exit(2);
 }
-if (!new RegExp(SUBS.class.rule).test(newClass)) {
-  console.error(`rename: "${newClass}" does not look like an ABAP class name (^zcl_ or ^zcx_, lower case, letters digits underscore)`);
-  process.exit(2);
-}
-if (newClass.length > SUBS.class.maxLength) {
-  console.error(`rename: "${newClass}" is ${newClass.length} characters; ABAP allows ${SUBS.class.maxLength}`);
+const refused = classNameProblem(newClass, SUBS.class);
+if (refused) {
+  console.error(`rename: ${refused}`);
   process.exit(2);
 }
 if (newClass === OLD_CLASS) {
@@ -69,14 +73,9 @@ if (newClass === OLD_CLASS) {
   process.exit(2);
 }
 
-/* The three substitution kinds template.json can ask for, executed. Kept
- * together so a new kind over there is one function here, not a new pass. */
-const applyClass = (text, cls) =>
-  text.split(OLD_CLASS).join(cls).split(OLD_CLASS.toUpperCase()).join(cls.toUpperCase());
-const applyElement = (text, element, value) =>
-  text.replace(new RegExp(`<${element}>[^<]*</${element}>`), `<${element}>${value}</${element}>`);
-const applyJsonKey = (text, key, value) =>
-  text.replace(new RegExp(`"${key}":\\s*"[^"]*"`), `"${key}": "${value}"`);
+/* The three substitution kinds template.json can ask for are executed by
+ * scripts/lib/substitute.mjs - one function each, shared with create/. A new
+ * kind over there is one function there and one pass here. */
 
 const changes = [];
 const edit = (file, fn) => {
@@ -91,7 +90,7 @@ const edit = (file, fn) => {
 // 1. the class, wherever template.json says it is written - the ABAP, the
 //    CLSNAME of its sidecar, and the documentation that names it
 for (const file of SUBS.class.files) {
-  edit(file, (t) => applyClass(t, newClass));
+  edit(file, (t) => applyClass(t, OLD_CLASS, newClass));
 }
 
 // 2. the package description abapGit shows
@@ -126,7 +125,7 @@ for (const c of changes) console.log(`  ${c.file}`);
 const renames = SUBS.class.renamesPath
   ? SUBS.class.files
       .filter((f) => f.includes(OLD_CLASS) && existsSync(join(ROOT, f)))
-      .map((f) => [f, f.split(OLD_CLASS).join(newClass)])
+      .map((f) => [f, substitutePath(f, OLD_CLASS, newClass, SUBS.class.renamesPath)])
   : [];
 for (const [from, to] of renames) console.log(`  ${from}  ->  ${to}`);
 

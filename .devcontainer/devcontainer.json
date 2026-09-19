@@ -1,0 +1,14 @@
+{
+  "name": "abap2UI5 app",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm ci && npx playwright install --with-deps chromium",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "abap2ui5.abap2ui5",
+        "larshp.vscode-abaplint",
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}

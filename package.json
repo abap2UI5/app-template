@@ -10,6 +10,7 @@
     "check:abap2ui5:fast": "abap2ui5lint --no-render",
     "check:all": "npm run check:pin && npm run check",
     "check:pin": "node scripts/check-pin.mjs",
+    "doctor": "node scripts/doctor.mjs",
     "fix": "abap2ui5lint --fix",
     "test": "npm run check:all"
   },

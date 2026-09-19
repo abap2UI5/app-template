@@ -11,18 +11,25 @@ with the validation gates preconfigured.
 | --- | --- |
 | `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
 | `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
+| `src/zcl_app_001.clas.testclasses.abap` | ABAP Unit tests for the starter app: a test double for `z2ui5_if_client` drives `main( )` through the first start, a `SAVE` event and a navigated roundtrip. Runs on the system (ADT `Ctrl+Shift+F10`); the local gates check it statically — see "Testing an app" below |
 | `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`, on the same minor line — they are cut from one tag) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
 | `package-lock.json` | Committed on purpose: `npm ci` reads it, so the gate versions CI runs are the ones you ran locally |
 | `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.144.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
 | `.github/workflows/check.yml` | CI: the framework pin, then abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
 | `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in more than one place and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
+| `scripts/doctor.mjs` | `npm run doctor` — offline environment check, one line per finding with its remedy: Node version, both gates installed and on one minor line, a Chromium the render gate can launch, the framework pin, the linter Action pin against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`, `WITH_UNIT_TESTS`), `abap2ui5lint.jsonc`, the VS Code extension, the linter's compatibility record. Exit 1 only on FAIL |
+| `.claude/skills/` | Four agent skills mirrored from the framework — `build-an-app`, `view-chain-layout`, `abap-check`, `ui5-check` — loaded on demand by Claude Code and any agent that reads `SKILL.md` files. Generated (each file says so on its first line); "this repository" in their text is the framework's |
+| `.claude/settings.json`, `.mcp.json` | The permission allowlist for autonomous sessions, and the abap2UI5 MCP server registered for Claude Code (`npx --yes @abap2ui5/mcp-server`). The VS Code extension registers the same server for Copilot itself |
+| `.devcontainer/`, `.vscode/extensions.json` | A dev container (Node 22, both gates and Chromium installed on create, the abap2UI5, abaplint and Claude Code extensions) and the editor's extension recommendations |
 
 ## Build & verify — run before every commit
 
 ```bash
 npm ci                          # once - installs both gates from the lockfile
 npx playwright install chromium # once - only the render gate needs a browser
+
+npm run doctor                  # is this machine able to run the gates? one line per check, with the remedy
 
 npm run check                   # abaplint + linter, expect 0 issues
 npm run check:abap2ui5:fast     # fast loop: linter without the render gate
@@ -31,6 +38,12 @@ npm run check:pin               # the framework release this repo names, in one 
 npm run check:all               # everything CI runs: the pin, then both gates
 npm test                        # the same as `npm run check:all`
 ```
+
+When a gate fails in a way that names a symptom rather than a cause — a
+syntax error inside `node_modules` (old Node), "browser not found" (no
+Chromium), a rule CI has and your run does not (Action pin and devDependency
+on different minor lines) — `npm run doctor` says which, and what to run. It
+is offline and takes a second.
 
 `npm run check:all` is the local equivalent of the CI job — a green run of it
 means CI passes. (`npm run check` is the two gates alone and skips the pin,
@@ -50,9 +63,51 @@ deploy → build → run-headless-and-screenshot loop.
 Conventions: every `.clas.abap` needs its `.clas.xml` sidecar (UTF-8 **with
 BOM**, LF endings — copy an existing one; `abaplint.jsonc` enables `xml_bom`
 and `xml_consistency`, so a hand-edited sidecar fails the gate rather than the
-next abapGit pull); class names stay in `ZCL_*`/`ZCX_*`, which is both
+next abapGit pull; a class with a `.clas.testclasses.abap` include also
+carries `<WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>` after `<UNICODE>`, which is how
+abapGit serializes one); class names stay in `ZCL_*`/`ZCX_*`, which is both
 `object_naming` in `abaplint.jsonc` and the rule the rename step enforces; the
 whole repo is in English.
+
+## Testing an app
+
+`src/zcl_app_001.clas.testclasses.abap` shows the shape: the app talks to the
+framework only through the `z2ui5_if_client` it is handed, so a local class
+with `INTERFACES z2ui5_if_client PARTIALLY IMPLEMENTED` — attributes deciding
+what `check_on_init( )` / `check_on_navigated( )` / `check_on_event( )` /
+`get_event( )` answer, tables recording what `view_display( )` and
+`message_toast_display( )` were given — is the whole test bed. The three tests
+are the three roundtrips every app has: the first call seeds the model and
+displays a view (`<Input`, `<List`), the `SAVE` event toasts `Saved, World`,
+and a navigated roundtrip re-displays without seeding again. Methods the
+double does not implement answer initial, which is what a view-string
+assertion needs.
+
+Run them on the system with ABAP Unit (ADT `Ctrl+Shift+F10`, or SE24). Here
+they are checked, not executed: abaplint compiles the include against the
+framework's interface, and the abap2UI5-linter skips `*.testclasses.abap`, so
+the render gate sees the app class alone. The rename step renames the include
+with the class (it is in `template.json`'s `substitutions.class.files`).
+
+## Agent skills
+
+`.claude/skills/` holds four `SKILL.md` files an agent loads when the task
+matches their description: **build-an-app** (the checklist for writing an app
+class, which points into this file), **view-chain-layout** (the seven layout
+rules for a builder chain and the linter rule that checks them),
+**abap-check** (ABAP that a green CI does not catch: abapGit round trip,
+activation, extended check, runtime) and **ui5-check** (the same for the
+view: names that do not exist on the oldest supported UI5 release, layout that
+needs a newer one). They are mirrored from
+[abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5)'s `.claude/skills/`
+by the template's generator, with a declared handful of sentences reworded
+(`npm run fmt:chains` is `npm run fix` here, the guide is this file). Where a
+skill says "this repository" or names a `.github/scripts/` gate, it means the
+framework's. Fix them upstream; a regeneration overwrites the copies.
+
+Starting a project without this repository's own scaffolding: `npm create
+abap2ui5-app@latest my-app -- --class zcl_my_app` writes the same files from
+the template's `main` branch (see the template's README for the four ways).
 
 The rest of this file is the complete app-building reference — read it before
 writing or changing any app class.
@@ -824,3 +879,20 @@ The same tree, with the subtree held in a variable:
   in [samples-stack](https://github.com/abap2UI5/samples-stack). What abap2UI5
   can express at all is answered in samples-controls' `CAPABILITIES.md`, each
   claim naming the port that proves it.
+- **Unit-test the app class without a system**: a local test double
+  `ltd_client` with `INTERFACES z2ui5_if_client PARTIALLY IMPLEMENTED.` in
+  the class's `.clas.testclasses.abap` answers `check_on_init` /
+  `check_on_event` / `get_event` from attributes and records what
+  `view_display( )` and `message_toast_display( )` receive; a test then
+  calls `main( )` and asserts.
+  [abap2UI5/app-template](https://github.com/abap2UI5/app-template) ships
+  one for its starter class — abaplint checks it statically, ABAP Unit runs
+  it on the system, and the MCP server's `run_unit_tests` runs it in the
+  transpiled backend.
+- **`npm run doctor`** in a project made from app-template: the environment
+  check — Node, the two gates, Chromium for the render gate, the framework
+  pin, the sidecars — that names the remedy for each failure.
+- **`npm create abap2ui5-app@latest my-app -- --class zcl_my_app`**: the
+  project scaffold without a GitHub template button or an editor.
+- **`interact_app`** in the MCP server: click, type and fire events in the
+  headless app and look at the result — the event branch, not just the boot.

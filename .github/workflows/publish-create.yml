@@ -1,0 +1,73 @@
+# Publishes create/ - the `create-abap2ui5-app` package behind
+# `npm create abap2ui5-app` - to npm. By hand, from the Actions tab, and only
+# then: the package carries no list of files and no list of substitutions (it
+# reads template.json from this repository's main branch at run time), so a
+# change to the template needs NO release here. Only a change to the package
+# itself does - create/index.mjs, or scripts/lib/substitute.mjs, whose copy
+# create/substitute.mjs ships.
+#
+# The publish is gated on the NPM_TOKEN secret the way the VS Code extension's
+# release gates on its marketplace tokens: without it the run still verifies
+# the package (the copy is byte-equal, the tests pass) and skips the publish
+# with a notice, so the workflow can be exercised before the npm account
+# exists.
+#
+# One-time setup: on npmjs.com create a granular access token with publish
+# rights on `create-abap2ui5-app` (or on the org, before the first publish)
+# and store it as the repository secret NPM_TOKEN. `--provenance` links the
+# published tarball to this run; it needs `id-token: write` below.
+#
+# Bump `version` in create/package.json before dispatching: npm refuses to
+# publish a version that is already up there, and the run says so.
+name: publish-create
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # The package ships a COPY of scripts/lib/substitute.mjs. A publish from
+      # a tree where the two differ would put the old substitution code on
+      # npm under a new version.
+      - name: The create package carries the current substitution code
+        run: node scripts/sync-create.mjs --check
+
+      # The tests need no install: they run create/index.mjs with --from
+      # against this checkout and compare the result with what rename.mjs
+      # produces, among the rest of scripts/test.
+      - name: Script unit tests
+        run: node --test scripts/test/*.test.mjs
+
+      - name: What would be published
+        working-directory: create
+        run: npm pack --dry-run
+
+      # The secrets context is not reliably available in step-level `if`, so
+      # "is the token configured" becomes a step output first.
+      - name: Check whether NPM_TOKEN is configured
+        id: token
+        run: |
+          echo "present=${{ secrets.NPM_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ secrets.NPM_TOKEN != '' }}" != "true" ]; then
+            echo "::notice::NPM_TOKEN secret not configured - the package was verified and NOT published"
+          fi
+
+      - name: Publish create-abap2ui5-app
+        if: steps.token.outputs.present == 'true'
+        working-directory: create
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
