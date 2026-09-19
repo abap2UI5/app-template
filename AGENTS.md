@@ -35,6 +35,7 @@ npm run check                   # abaplint + linter, expect 0 issues
 npm run check:abap2ui5:fast     # fast loop: linter without the render gate
 npm run watch                   # the fast loop, again on every save - Ctrl+C ends it
 npm run watch:render            # the same with the render gate, one warm browser across the runs
+npm run test:unit               # the ABAP Unit tests in the transpiled backend - no system (see Testing an app)
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release this repo names, in one place
 npm run check:all               # everything CI runs: the pin, then both gates
@@ -96,15 +97,29 @@ what `check_on_init( )` / `check_on_navigated( )` / `check_on_event( )` /
 `message_toast_display( )` were given — is the whole test bed. The three tests
 are the three roundtrips every app has: the first call seeds the model and
 displays a view (`<Input`, `<List`), the `SAVE` event toasts `Saved, World`,
-and a navigated roundtrip re-displays without seeding again. Methods the
-double does not implement answer initial, which is what a view-string
-assertion needs.
+and a navigated roundtrip re-displays without seeding again. The double
+implements every method the app CALLS - the lifecycle questions, the two
+things it does back, and the four the view code reaches for (`_bind`,
+`_event`, `_event_nav_app_leave`, `check_app_prev_stack`): on a system a
+`PARTIALLY IMPLEMENTED` interface's missing methods are generated empty, in
+the transpiled runtime below they are not, and a call to one is a TypeError
+there. Add a method to the double when the app starts calling another one;
+the runner names the missing one.
 
-Run them on the system with ABAP Unit (ADT `Ctrl+Shift+F10`, or SE24). Here
-they are checked, not executed: abaplint compiles the include against the
-framework's interface, and the abap2UI5-linter skips `*.testclasses.abap`, so
-the render gate sees the app class alone. The rename step renames the include
-with the class (it is in `template.json`'s `substitutions.class.files`).
+Run them on the system with ABAP Unit (ADT `Ctrl+Shift+F10`, or SE24) - or
+**without a system**: `npm run test:unit` (the mcp-server's `abap2ui5-unit`)
+clones the framework at the release `abaplint.jsonc` pins, gets its transpiled
+backend (the release asset, or one build of a few minutes, cached under
+`~/.abap2ui5-mcp`), transpiles the classes under `src/` with their test
+includes into it and runs the tests through the open-abap runtime. The `unit`
+job in `check.yml` does the same on every pull request through the
+`abap2UI5/mcp-server` action, with the step summary naming every test method
+and the first failure. What the runtime cannot model (the abap-check skill
+lists the known cases) a system still has to answer. `npm run check` stays
+what it is: abaplint compiles the include against the framework's interface,
+and the abap2UI5-linter skips `*.testclasses.abap`, so the render gate sees
+the app class alone. The rename step renames the include with the class (it
+is in `template.json`'s `substitutions.class.files`).
 
 ## Agent skills
 
@@ -905,7 +920,11 @@ The same tree, with the subtree held in a variable:
   [abap2UI5/app-template](https://github.com/abap2UI5/app-template) ships
   one for its starter class — abaplint checks it statically, ABAP Unit runs
   it on the system, and the MCP server's `run_unit_tests` runs it in the
-  transpiled backend.
+  transpiled backend; `npm run test:unit` in the project and the
+  `abap2UI5/mcp-server` GitHub Action do the same at the terminal and in CI,
+  no system involved. Implement every method the app calls in the double:
+  the transpiled runtime generates no empty stubs for a `PARTIALLY
+  IMPLEMENTED` interface, a system does.
 - **`npm run doctor`** in a project made from app-template: the environment
   check — Node, the two gates, Chromium for the render gate, the framework
   pin, the sidecars — that names the remedy for each failure.

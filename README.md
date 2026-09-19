@@ -118,6 +118,7 @@ npm run check:abap              # abaplint only
 npm run check:abap2ui5:fast     # linter without the render gate (no browser)
 npm run watch                   # the same, again on every save - Ctrl+C ends it
 npm run watch:render            # the watch with the render gate on, one warm browser across the runs
+npm run test:unit               # the ABAP Unit tests, run in the transpiled backend without a system
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release named in one place only
 npm run doctor                  # when something above fails: what is missing, and the command that fixes it
@@ -161,9 +162,15 @@ app and the pattern for your own: a local `ltd_client` with
 `INTERFACES z2ui5_if_client PARTIALLY IMPLEMENTED` whose attributes decide
 what `check_on_init( )` / `check_on_navigated( )` / `check_on_event( )` /
 `get_event( )` answer and which records the `view_display( )` XML and the
-`message_toast_display( )` texts. Run it on the system (ADT
-`Ctrl+Shift+F10`); locally abaplint compiles it against the framework and the
-linter skips test includes, so `npm run check` stays the gate it is.
+`message_toast_display( )` texts, and implements the four methods the view
+code calls (the transpiled runtime generates no stubs for a `PARTIALLY
+IMPLEMENTED` interface, a system does). Run it on the system (ADT
+`Ctrl+Shift+F10`) - or without one: `npm run test:unit` and the `unit` job in
+`check.yml` run it in the transpiled abap2UI5 backend, through the
+[mcp-server](https://github.com/abap2UI5/mcp-server)'s `abap2ui5-unit`
+(framework at the pinned release, backend downloaded or built once and
+cached). Locally abaplint compiles it against the framework and the linter
+skips test includes, so `npm run check` stays the gate it is.
 
 ## Iterate without an SAP system
 

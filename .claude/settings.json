@@ -10,6 +10,7 @@
       "Bash(npm run fix)",
       "Bash(npm run watch)",
       "Bash(npm run watch:render)",
+      "Bash(npm run test:unit)",
       "Bash(npm run check:pin)",
       "Bash(npm run doctor)",
       "Bash(node scripts/rename.mjs:*)",
