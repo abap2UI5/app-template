@@ -76,7 +76,19 @@ jobs:
         run: node scripts/generate-agents.mjs --check 2>&1 | tee "$RUNNER_TEMP/guide-mirror.txt"; exit "${PIPESTATUS[0]}"
         shell: bash
 
-      # The four programs above parse files by regex, and a pattern that stops
+      # The four agent skills under .claude/skills/ are generated from the
+      # framework's the same way, with their own declared deviations, and ship
+      # with every project. Same contract: fails on drift, says so and passes
+      # when the framework is unreachable.
+      - name: Agent skills mirror
+        run: node scripts/generate-skills.mjs --check
+
+      # create/ (the `npm create abap2ui5-app` package) ships a byte-equal copy
+      # of scripts/lib/substitute.mjs, the substitution code rename.mjs runs.
+      - name: The create package's substitution copy
+        run: node scripts/sync-create.mjs --check
+
+      # The programs above parse files by regex, and a pattern that stops
       # matching turns its gate into one that passes by checking nothing.
       - name: Script unit tests
         run: node --test scripts/test/*.test.mjs

@@ -10,9 +10,14 @@
     "check:abap2ui5:fast": "abap2ui5lint --no-render",
     "check:all": "npm run check:pin && npm run check",
     "check:pin": "node scripts/check-pin.mjs",
+    "doctor": "node scripts/doctor.mjs",
     "fix": "abap2ui5lint --fix",
+    "test:unit": "npx --yes -p @abap2ui5/mcp-server abap2ui5-unit src",
+    "watch": "abap2ui5lint --watch --no-render",
+    "watch:render": "abap2ui5lint --watch",
     "test": "npm run check:all"
   },
+  "//": "watch and watch:render need the linter's --watch flag, which arrives with the @abap2ui5/linter release after 0.6.1 - the ^0.6.1 pinned here does not have it yet, so until the devDependency is bumped past it both scripts print the linter's `unknown option '--watch'` and exit 2 (`npm run doctor` says which). JSON has no comments; npm ignores this key. test:unit runs the mcp-server's abap2ui5-unit bin, which arrives with the @abap2ui5/mcp-server release after 0.2.0; until then npx reports that the bin does not exist - the CI job in check.yml pins the action to a commit that has it.",
   "license": "MIT",
   "devDependencies": {
     "@abap2ui5/linter": "^0.6.1",

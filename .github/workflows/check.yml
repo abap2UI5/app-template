@@ -110,3 +110,32 @@ jobs:
       - name: Job summary
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npx abap2ui5lint --no-render --advisory --no-progress --format markdown >> "$GITHUB_STEP_SUMMARY"
+
+  # The ABAP Unit tests of the app classes, without a SAP system: the
+  # mcp-server's runner clones the framework at the release abaplint.jsonc pins
+  # (the same pin the job above lints against), downloads that release's
+  # transpiled backend - or builds it once, a few minutes - transpiles every
+  # class under src/ with its *.clas.testclasses.abap into it and runs the
+  # tests through the open-abap runtime. The framework clone and its backend
+  # are cached per pin, so a run after the first is seconds. The step summary
+  # names every test method and the first failure.
+  #
+  # A separate job on purpose: it needs neither the gates' npm install nor a
+  # browser, and a failing test should read as a failing TEST, not as a red
+  # lint. What it cannot see is what the runtime cannot model (a real system
+  # answers that - and the abap-check skill lists the known cases); a
+  # PARTIALLY IMPLEMENTED test double has to implement every method the code
+  # under test calls, because the runtime generates no empty stubs. Locally:
+  # `npm run test:unit`.
+  #
+  # Pinned to a commit like the other actions, and moved by dependabot the same
+  # way; `abap2UI5/mcp-server@v0` is the always-current form.
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: abap2UI5 unit tests (transpiled backend, no system)
+        uses: abap2UI5/mcp-server@dd110765115bb47836b646775c8ccafaa1deeadd # v0
+        with:
+          paths: src

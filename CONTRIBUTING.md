@@ -12,10 +12,12 @@ npm run check:all                       # what a project made from this gets: th
 
 node scripts/check-template.mjs         # template.json still describes this repository
 node scripts/generate-agents.mjs --check # the mirrored half of AGENTS.md matches the guide
-node --test scripts/test/*.test.mjs     # the four scripts, and the claims they make about these files
+node scripts/generate-skills.mjs --check # the four .claude/skills match the framework's
+node scripts/sync-create.mjs --check    # create/ carries the current substitution code
+node --test scripts/test/*.test.mjs     # the scripts, and the claims they make about these files
 ```
 
-The last three need no install and run in seconds.
+The last five need no install and run in seconds.
 
 **Why the split.** The first block is the project's; the second is the
 template's. `package.json` and `.github/workflows/check.yml` are both handed
@@ -65,7 +67,12 @@ a divergence with nothing saying so. That is now checked.
 | `scripts/generate-agents.mjs` | Writes the mirrored half of `AGENTS.md` (everything below "1. The model in one paragraph") from the framework's app-building guide, and fails when the two have parted |
 | `scripts/app-guide-deviations.mjs` | The sentences the mirror is expected to say differently. **Not this repository's file**: it is abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here and held byte-equal by that repository's `npm run check:shared` |
 | `scripts/rename.mjs` | `node scripts/rename.mjs --class zcl_my_app` — makes the template yours, by executing `template.json` |
+| `scripts/lib/substitute.mjs` | The substitutions `template.json` can ask for, as pure functions — what `rename.mjs` and the `create` package both execute. Edit it here; `sync-create.mjs` carries it over |
+| `scripts/sync-create.mjs` | Copies `scripts/lib/substitute.mjs` to `create/substitute.mjs` (the published package has to be self-contained); `--check` fails when the copy differs |
+| `scripts/generate-skills.mjs` | Writes `.claude/skills/*/SKILL.md` from the framework's four skills, with a declared list of deviations per skill; `--check` fails on drift and passes with a notice when the framework is unreachable |
+| `scripts/doctor.mjs` | **Ships.** `npm run doctor` — the offline environment and repository check, one line per finding with its remedy. Its decisions are pure exported functions, tested in `scripts/test/doctor.test.mjs` |
+| `create/` | The `create-abap2ui5-app` npm package: `npm create abap2ui5-app@latest my-app -- --class zcl_my_app`. Carries no file list of its own — it reads `template.json` from `main` at run time — so a template change needs no release of it; a change to its code does (`.github/workflows/publish-create.yml`, by hand, gated on the `NPM_TOKEN` secret) |
 
-All four parse files by regex, and a pattern that stops matching does not fail —
-it makes its gate pass by checking nothing. `scripts/test/` is what holds them
-to that; add a case there whenever you touch a pattern.
+Most of them parse files by regex, and a pattern that stops matching does not
+fail — it makes its gate pass by checking nothing. `scripts/test/` is what
+holds them to that; add a case there whenever you touch a pattern.

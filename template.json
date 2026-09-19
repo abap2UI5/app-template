@@ -15,13 +15,22 @@
       ".github/dependabot.yml",
       ".claude/settings.json",
       "package-lock.json",
-      "scripts/check-pin.mjs"
+      "scripts/check-pin.mjs",
+      "scripts/doctor.mjs",
+      ".devcontainer/devcontainer.json",
+      ".vscode/extensions.json",
+      ".mcp.json",
+      ".claude/skills/build-an-app/SKILL.md",
+      ".claude/skills/view-chain-layout/SKILL.md",
+      ".claude/skills/abap-check/SKILL.md",
+      ".claude/skills/ui5-check/SKILL.md"
     ],
     "named": [
       ".abapgit.xml",
       "src/package.devc.xml",
       "src/zcl_app_001.clas.abap",
-      "src/zcl_app_001.clas.xml"
+      "src/zcl_app_001.clas.xml",
+      "src/zcl_app_001.clas.testclasses.abap"
     ],
     "templateOwn": {
       "README.md": "describes the template itself; a project writes its own",
@@ -34,7 +43,12 @@
       ".github/workflows/pin-freshness.yml": "weekly maintenance of the TEMPLATE's own framework pin, reported as an issue on this repository; a project decides its own pin policy and gets check.yml, which runs check:pin on every pull request",
       ".github/workflows/bump-linter.yaml": "weekly maintenance of the TEMPLATE's own linter pin, gated by this repository's checks and opened as a PR here; a project decides its own bump policy the same way it decides its pin policy",
       ".github/workflows/template-self-check.yml": "the gates that are about THIS repository rather than about a project made from it - template.json's description, the AGENTS.md mirror, and the unit tests for scripts/. check.yml used to run the first two and a project inherited steps it could not execute",
-      "scripts/test": "unit tests for the scripts above, which a project does not get"
+      "scripts/test": "unit tests for the scripts above, which a project does not get",
+      "scripts/lib": "the substitution code scripts/rename.mjs and the create-abap2ui5-app package (create/) share; a project has nothing left to substitute, and no rename.mjs to import it",
+      "scripts/sync-create.mjs": "copies scripts/lib/substitute.mjs into create/substitute.mjs (the published package has to be self-contained) and gates the copy byte-equal with --check from template-self-check.yml; a project publishes no package",
+      "scripts/generate-skills.mjs": "mirrors the framework's four agent skills into .claude/skills/ here, with declared deviations; a project has the four SKILL.md files, not the generator",
+      "create": "the `create-abap2ui5-app` npm package - `npm create abap2ui5-app` - which reads THIS template.json and writes a project; a project is what it produces, not what it contains. Published by .github/workflows/publish-create.yml",
+      ".github/workflows/publish-create.yml": "manual-dispatch publish of create/ to npm, with this repository's NPM_TOKEN; a project has no package to publish"
     }
   },
   "substitutions": {
@@ -42,6 +56,7 @@
       "files": [
         "src/zcl_app_001.clas.abap",
         "src/zcl_app_001.clas.xml",
+        "src/zcl_app_001.clas.testclasses.abap",
         "AGENTS.md"
       ],
       "cases": [
@@ -49,7 +64,7 @@
         "upper"
       ],
       "renamesPath": true,
-      "why": "The ABAP source writes the name lower case and the sidecar's CLSNAME upper case. Renaming half of it produces an object abapGit imports under one name and ABAP activates under another - which is the whole reason this is a script and not an instruction.",
+      "why": "The ABAP source writes the name lower case and the sidecar's CLSNAME upper case. Renaming half of it produces an object abapGit imports under one name and ABAP activates under another - which is the whole reason this is a script and not an instruction. The test include names the class too (the class under test, and the reference to its attributes), so it is listed here and renamed with the pair.",
       "rule": "^z(cl|cx)_[a-z0-9_]{1,26}$",
       "maxLength": 30
     },
