@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import {
   parseVersion, cmpVersion, sameMinor, parseJsonc,
   checkNode, checkInstalled, checkSameMinor, checkChromium, checkPin, checkActionPin,
-  checkSidecar, checkLintConfig, checkExtension, checkCompat, summarise,
+  checkSidecar, checkLintConfig, checkExtension, checkCompat, checkWatch, summarise,
 } from '../doctor.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -171,6 +171,24 @@ test('doctor: the compatibility record - absent is fine, a pin below the minimum
   assert.match(low.text, /needs 1\.145\.0 or newer/);
   assert.equal(checkCompat({ linter: '0.7.0' }, '1.144.0').status, 'WARN');
   assert.equal(checkCompat(rec, null).status, 'WARN');
+});
+
+test('doctor: linter --watch - present is OK, absent is a WARN naming the bump, not installed is skipped, never a FAIL', () => {
+  const has = checkWatch("else if (a === '--watch') watchMode = true;", '0.7.0');
+  assert.equal(has.status, 'OK');
+  assert.match(has.text, /npm run watch/);
+  const not = checkWatch("else if (a === '--fix') opt.fix = true;", '0.6.1');
+  assert.equal(not.status, 'WARN');
+  assert.match(not.text, /0\.6\.1 has no --watch/);
+  assert.match(not.remedy, /bump @abap2ui5\/linter/);
+  assert.equal(checkWatch(null, null).status, 'OK');
+  // the probe is the flag's spelling in the installed CLI's source; an empty
+  // file is "no --watch", not a crash
+  assert.equal(checkWatch('', '0.6.1').status, 'WARN');
+  // and against the installed linter, whichever it is, the line never fails
+  const cliPath = path.join(ROOT, 'node_modules/@abap2ui5/linter/cli.mjs');
+  const real = checkWatch(fs.existsSync(cliPath) ? fs.readFileSync(cliPath, 'utf8') : null, '0.6.1');
+  assert.ok(real.status !== 'FAIL', real.text);
 });
 
 test('doctor: the verdict - exit 1 only on FAIL', () => {

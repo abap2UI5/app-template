@@ -22,9 +22,11 @@
  * the "is it the newest release" half of that script is deliberately left to
  * `npm run check:pin`.
  *
- * Two checks are optional and never fail: whether VS Code has the abap2UI5
- * extension (only when `code` is on PATH), and the linter's compatibility
- * record (`data/compat.json`), which older linter versions do not ship.
+ * Three checks are optional and never fail: whether VS Code has the abap2UI5
+ * extension (only when `code` is on PATH), the linter's compatibility
+ * record (`data/compat.json`), which older linter versions do not ship, and
+ * whether the installed linter has `--watch` (what `npm run watch` needs),
+ * which older linter versions do not have.
  *
  * The decisions are exported as pure functions and unit-tested in
  * scripts/test/doctor.test.mjs; the I/O is in main() below. This file ships
@@ -227,6 +229,22 @@ export function checkCompat(compat, pinned) {
   return ok(`framework ${pinned} satisfies the linter's minimum ${min}${extra ? ` (${extra})` : ''}`);
 }
 
+/**
+ * `npm run watch` / `npm run watch:render` are `abap2ui5lint --watch`, a flag
+ * the linter gained after 0.6.1. `cli` is the text of the installed linter's
+ * cli.mjs (null when it is not there - the install check has that), `version`
+ * its version for the message. The probe is the flag's spelling in the CLI's
+ * own source: an older linter answers `unknown option '--watch'` and exit 2,
+ * which is what the WARN line says. Never fails: a watch is a loop for the
+ * developer, not a gate.
+ */
+export function checkWatch(cli, version) {
+  if (cli === null) return ok('linter --watch: the linter is not installed - check skipped');
+  if (cli.includes('--watch')) return ok(`@abap2ui5/linter ${version ?? ''} has --watch - \`npm run watch\` re-runs the check on every save`.replace(/\s+/g, ' '));
+  return warn(`@abap2ui5/linter ${version ?? ''} has no --watch yet - \`npm run watch\` and \`npm run watch:render\` print its unknown-option error`.replace(/\s+/g, ' '),
+    'bump @abap2ui5/linter (the flag arrives with the release after 0.6.1; move @abap2ui5/render-runtime with it, they share a minor line)');
+}
+
 /** The whole report's verdict: exit 1 only when something FAILed. */
 export function summarise(results) {
   const n = (s) => results.filter((r) => r.status === s).length;
@@ -323,6 +341,8 @@ async function main() {
     }
   }
   if (compat || !fs.existsSync(compatPath)) results.push(checkCompat(compat, pin.distinct.length === 1 ? pin.distinct[0] : null));
+
+  results.push(checkWatch(readIf('node_modules/@abap2ui5/linter/cli.mjs'), linter));
 
   console.log('doctor: the gates and this repository, checked offline');
   for (const r of results) {

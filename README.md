@@ -116,6 +116,8 @@ npx playwright install chromium # once - only for the render gate
 npm run check                   # both gates, expect 0 issues
 npm run check:abap              # abaplint only
 npm run check:abap2ui5:fast     # linter without the render gate (no browser)
+npm run watch                   # the same, again on every save - Ctrl+C ends it
+npm run watch:render            # the watch with the render gate on, one warm browser across the runs
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release named in one place only
 npm run doctor                  # when something above fails: what is missing, and the command that fixes it
@@ -127,8 +129,17 @@ where the render gate will look (`npx playwright install chromium` otherwise),
 the framework pin (through `check-pin`), the linter Action pin in `check.yml`
 against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`,
 `WITH_UNIT_TESTS` for a class with tests), `abap2ui5lint.jsonc`, and — never
-failing — whether VS Code has the abap2UI5 extension and whether the pinned
-framework satisfies the linter's compatibility record, when it ships one.
+failing — whether VS Code has the abap2UI5 extension, whether the pinned
+framework satisfies the linter's compatibility record, when it ships one, and
+whether the installed linter has `--watch`.
+
+`watch` is the loop for Eclipse ADT users who pull with abapGit into this
+checkout: save in ADT, pull, read the report — the linter re-runs on every
+change under `src/` (VS Code users have the extension's live check instead).
+The `--watch` flag arrives with the `@abap2ui5/linter` release after 0.6.1, so
+on the `^0.6.1` pinned here both `watch` scripts print the linter's
+`unknown option '--watch'` until the devDependency is bumped — `doctor` says
+whether the installed linter has it.
 
 `check:pin` is the small gate around the one pin nothing else can move: the
 framework release in `abaplint.jsonc` is a tag inside an abaplint dependency,

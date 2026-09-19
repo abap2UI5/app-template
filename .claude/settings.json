@@ -8,6 +8,8 @@
       "Bash(npm run check:abap2ui5)",
       "Bash(npm run check:abap2ui5:fast)",
       "Bash(npm run fix)",
+      "Bash(npm run watch)",
+      "Bash(npm run watch:render)",
       "Bash(npm run check:pin)",
       "Bash(npm run doctor)",
       "Bash(node scripts/rename.mjs:*)",

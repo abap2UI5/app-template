@@ -18,7 +18,7 @@ with the validation gates preconfigured.
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
 | `.github/workflows/check.yml` | CI: the framework pin, then abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
 | `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in more than one place and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
-| `scripts/doctor.mjs` | `npm run doctor` — offline environment check, one line per finding with its remedy: Node version, both gates installed and on one minor line, a Chromium the render gate can launch, the framework pin, the linter Action pin against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`, `WITH_UNIT_TESTS`), `abap2ui5lint.jsonc`, the VS Code extension, the linter's compatibility record. Exit 1 only on FAIL |
+| `scripts/doctor.mjs` | `npm run doctor` — offline environment check, one line per finding with its remedy: Node version, both gates installed and on one minor line, a Chromium the render gate can launch, the framework pin, the linter Action pin against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`, `WITH_UNIT_TESTS`), `abap2ui5lint.jsonc`, the VS Code extension, the linter's compatibility record, whether the installed linter has `--watch`. Exit 1 only on FAIL |
 | `.claude/skills/` | Four agent skills mirrored from the framework — `build-an-app`, `view-chain-layout`, `abap-check`, `ui5-check` — loaded on demand by Claude Code and any agent that reads `SKILL.md` files. Generated (each file says so on its first line); "this repository" in their text is the framework's |
 | `.claude/settings.json`, `.mcp.json` | The permission allowlist for autonomous sessions, and the abap2UI5 MCP server registered for Claude Code (`npx --yes @abap2ui5/mcp-server`). The VS Code extension registers the same server for Copilot itself |
 | `.devcontainer/`, `.vscode/extensions.json` | A dev container (Node 22, both gates and Chromium installed on create, the abap2UI5, abaplint and Claude Code extensions) and the editor's extension recommendations |
@@ -33,6 +33,8 @@ npm run doctor                  # is this machine able to run the gates? one lin
 
 npm run check                   # abaplint + linter, expect 0 issues
 npm run check:abap2ui5:fast     # fast loop: linter without the render gate
+npm run watch                   # the fast loop, again on every save - Ctrl+C ends it
+npm run watch:render            # the same with the render gate, one warm browser across the runs
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release this repo names, in one place
 npm run check:all               # everything CI runs: the pin, then both gates
@@ -44,6 +46,21 @@ syntax error inside `node_modules` (old Node), "browser not found" (no
 Chromium), a rule CI has and your run does not (Action pin and devDependency
 on different minor lines) — `npm run doctor` says which, and what to run. It
 is offline and takes a second.
+
+`npm run watch` is `abap2ui5lint --watch --no-render`: the static check once,
+then again on every save under `src/` (and on an edit to
+`abap2ui5lint.jsonc`, which is read again), the report on stdout and a
+separator naming the changed file on stderr; `npm run watch:render` is the
+same loop with the render gate on, keeping one warm browser across the runs
+instead of launching one per run. A watch never exits 1 - it is the loop for
+a developer whose editor has no linter in it (Eclipse ADT, with abapGit
+pulling the classes into this checkout: save, pull, read), not a gate; it
+refuses `--fix`, `--screenshot` and the JSON/SARIF outputs, so `npm run fix`
+stays a separate step. VS Code users have the extension's live check instead.
+The flag arrives with the `@abap2ui5/linter` release after 0.6.1 - on the
+`^0.6.1` this repository pins, both scripts print the linter's
+`unknown option '--watch'` and exit 2 until the devDependency is bumped
+(`npm run doctor` says whether the installed linter has it).
 
 `npm run check:all` is the local equivalent of the CI job — a green run of it
 means CI passes. (`npm run check` is the two gates alone and skips the pin,

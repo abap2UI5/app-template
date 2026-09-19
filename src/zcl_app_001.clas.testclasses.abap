@@ -16,9 +16,14 @@
 CLASS ltd_client DEFINITION FINAL FOR TESTING.
 
   PUBLIC SECTION.
-    " PARTIALLY IMPLEMENTED: the methods the app does not ask this double for
-    " (_bind, _event, check_app_prev_stack, ...) are generated empty and
-    " answer initial - which is exactly what a view string test needs
+    " PARTIALLY IMPLEMENTED: on a SAP system every method the double does not
+    " implement is generated empty and answers initial. The transpiled runtime
+    " the MCP server's run_unit_tests uses generates NO such stubs - a call to
+    " a missing method is a TypeError there - so the double implements every
+    " method the app actually calls: the lifecycle questions, the two things
+    " it does back, and the four the view code reaches for (_bind, _event,
+    " _event_nav_app_leave, check_app_prev_stack). Add a method here when the
+    " app starts calling another one; run_unit_tests names the missing one.
     INTERFACES z2ui5_if_client PARTIALLY IMPLEMENTED.
 
     " what the app's lifecycle questions are answered with
@@ -58,6 +63,24 @@ CLASS ltd_client IMPLEMENTATION.
 
   METHOD z2ui5_if_client~message_toast_display.
     APPEND text TO t_toast.
+  ENDMETHOD.
+
+  " what the view code calls while it builds the XML string: answered with
+  " a recognisable token each, so a test can assert on the view it produced
+  METHOD z2ui5_if_client~_bind.
+    result = `bound`.
+  ENDMETHOD.
+
+  METHOD z2ui5_if_client~_event.
+    result = val.
+  ENDMETHOD.
+
+  METHOD z2ui5_if_client~_event_nav_app_leave.
+    result = `NAV_APP_LEAVE`.
+  ENDMETHOD.
+
+  METHOD z2ui5_if_client~check_app_prev_stack.
+    result = abap_false.
   ENDMETHOD.
 
 ENDCLASS.
@@ -107,6 +130,8 @@ CLASS ltcl_app IMPLEMENTATION.
     DATA(view) = client->t_view[ 1 ].
     cl_abap_unit_assert=>assert_true( xsdbool( view CS `<Input` ) ).
     cl_abap_unit_assert=>assert_true( xsdbool( view CS `<List` ) ).
+    " the Save button is wired to the SAVE event (the double echoes the name)
+    cl_abap_unit_assert=>assert_true( xsdbool( view CS `press="SAVE"` ) ).
     cl_abap_unit_assert=>assert_initial( client->t_toast ).
 
   ENDMETHOD.
