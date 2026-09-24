@@ -140,6 +140,8 @@ not everywhere; see below. Everything else in the table is this repository's
 script and nothing else — and a consumer repository that has not turned
 `xml_bom` on can still ship a BOM-less sidecar with a green CI.
 
+**Backlog:** abaplint · abaplint-abap-final-newline
+
 abapGit writes every file one specific way. Write it another way and it
 differs from what the system serializes back — permanently, on every pull, for
 everyone.
@@ -288,6 +290,18 @@ rather than reimplemented there. Generic types on older releases are **abaplint 
 `downport`, `fully_type_itabs`, `cloud_types`** where a repository enables
 them; the app-template core does, the sample repositories do not yet.
 
+Measured again 2026-09-19 on abaplint **2.120.52** (`check_syntax` on, an
+isolated class per shape): both class-pool traps are upstream findings now —
+a `CLASS-METHODS class_constructor.` in a `PRIVATE SECTION` is *"CLASS_CONSTRUCTOR
+must be declared in the public section"*, and a test class calling a
+PROTECTED method of the global class without `LOCAL FRIENDS` is *"Method … is
+protected and cannot be accessed"*. So the upstream shortlist entry above is
+closed, and the two repository scripts are belt and braces for whoever pins
+an older abaplint. What is still nobody's upstream is in the `**Backlog:**`
+lines below — each names an item under `backlog/items/`, written to be filed
+against abaplint, since a rule about ABAP as a language belongs there and not
+in the abap2UI5 linter (which keeps the abap2UI5-specific checks).
+
 ### The class pool
 
 | Trap | Rule |
@@ -296,12 +310,17 @@ them; the app-template core does, the sample repositories do not yet.
 | **`CREATE DATA … TYPE HANDLE` takes a data object, not a method call** | `CREATE DATA lr TYPE HANDLE cl_abap_structdescr=>create( lt_comp ).` is "No method can be specified in the current position" on a system - the operand has to be a variable holding the descriptor. abaplint parses the call as an expression and the transpiler runs it, so a test class shipped this way through every gate and a user's system reported it (2026-09-02, `ltcl_app_shapes` in `z2ui5_cl_ui5_srv_model`). Gated by `check:atc` (`handle_call`): a `TYPE HANDLE` operand with a `(` in it |
 | **`->*` needs a data reference variable in front of it** | `result = row_ref( iv_name )->*.` is a syntax error on 7.50 - the dereferencing operator takes a reference variable, not the result of a functional method call or a constructor expression; hoist the reference into its own variable and dereference that. abaplint parses the chain at `syntax.version` v750 and the transpiler runs it, so the line was green through every gate here and a user on SAP_ABA 750 SP33 reported it (#2722, `ltcl_00_base~row` in `z2ui5_cl_ui5_srv_model` - the same test class `handle_call` came from). Gated by `check:atc` (`deref_call`): a `)` directly in front of a `->*` |
 | **A test class touching PRIVATE/PROTECTED members needs `CLASS <global> DEFINITION LOCAL FRIENDS <ltcl>.`** | Same failure mode, and it reaches users: `ltcl_rtti` got to `main` without it and had to be repaired (`cadfb7ae`), and #2146 is a user reporting a shipped test class that calls the PROTECTED `request_json_to_abap`. The transpiler makes every member a plain JS property, so `npm run unit` is green on a class pool the system rejects. Gated by `npm run check_visibility` |
+| **A PRIVATE/PROTECTED member is out of reach for every OTHER class** | *Field "MV_SESSION_STICKY" is unknown* — four times on a user's system (2026-09-23): the attribute sat in the PRIVATE SECTION of `z2ui5_cl_ui5_handler` while `z2ui5_cl_ui5_http_handler` wrote it, `z2ui5_cl_ui5_action` read it and the action's test class set it. abaplint's `check_syntax` does not check attribute visibility and the transpiler makes every member a JS property, so `npm run check`, `npm run unit` and every gate were green; `check_visibility` only compares a test class with its OWN class under test. Make the member PUBLIC (`READ-ONLY` where only the owner writes it) — `LOCAL FRIENDS` is no fix here, it only reaches local classes of the owner's own pool. Gated by `npm run check:members`: `ref->member` resolved through a method-local declaration, a parameter or an attribute, and `class=>member`; friends, subclasses and friend interfaces are legal |
+
+**Backlog:** abaplint · abaplint-type-handle-method-call, abaplint-deref-of-method-call
 
 ### Generic types on older releases — the recurring one
 
 This class of defect has now bitten three times, twice reported by users after
 a pull, and it is the single most likely thing to break a system that is not on
-the newest release. abaplint's default target accepts all of it.
+the newest release. abaplint's default target accepts all of it; at `syntax.version`
+v750 or v702, `check_syntax` reports the first shape (below v756) and still
+accepts the other two (measured 2026-09-23 on 2.120.59).
 
 - **A generic `REF TO data` cannot be dereferenced inline.** `lr_ref->*` in an
   expression, and `ASSIGN COMPONENT … OF STRUCTURE mr_data->*`, both fail with
@@ -322,6 +341,8 @@ the newest release. abaplint's default target accepts all of it.
   `prefer_corresponding` rule had to be switched off for the low-release config
   because it recommends the construct that does not compile there.
 
+**Backlog:** abaplint · abaplint-generic-deref-old-releases
+
 ### VALUE constructor — a header default plus a per-row value is a syntax error
 
 - **A component assigned before the first line spec cannot be assigned again
@@ -339,7 +360,10 @@ the newest release. abaplint's default target accepts all of it.
   `value-header-default-reassigned` (2026-08-30), which follows the
   `source-line-too-long` precedent: for a consumer whose only gate is
   `npx @abap2ui5/linter`, a class that does not activate is the most severe thing
-  this tool can find.
+  this tool can find. Measured again 2026-09-19 on abaplint **2.120.52**:
+  `check_syntax` reports the row's second assignment as *"Duplicate field
+  assignment"*, so on that pin the construct no longer reaches `main` through
+  abaplint either, and the linter rule is a duplicate for such repositories.
 
 ### A literal that ends where the next token begins
 
@@ -393,6 +417,8 @@ the newest release. abaplint's default target accepts all of it.
   because a systemless pipeline sees an activation error only when somebody
   imports the transport.
 
+**Backlog:** abaplint · abaplint-into-corresponding-inline-decl
+
 ### RAP and CDS (`abap2UI5/samples-stack`)
 
 The RAP objects activate, or do not, for reasons abaplint has no model of at
@@ -433,7 +459,7 @@ system, or must fetch data dynamically.
 decide. The rest is **open** by construction: SLIN and ATC run in a system,
 and no gate outside one can stand in for them.
 
-**Backlog:** abaplint · abaplint-preferred-parameter-ignored
+**Backlog:** abaplint · abaplint-preferred-parameter-ignored, abaplint-empty-catch-block, abaplint-default-key-implicit, abaplint-abapdoc-html-tag, abaplint-get-reference-obsolete, abaplint-ref-into-generic-target
 
 Partly gated by `npm run check:atc`
 (`.github/scripts/extended-check-gate.mjs`). Prose was tried first and did not
@@ -445,6 +471,17 @@ pitfalls".
 
 **Gated:**
 
+- **A range-table row is checked against the domain of `SIGN` and `OPTION`.**
+  Any structure with the components `sign`/`option`/`low`/`high` is a
+  selection structure to the syntax check, and a `VALUE` row of one without an
+  option warns *Specification "OPTION" is missing in the selection structure*,
+  one with a literal outside the domain — lower case included — *"eq" is not a
+  permitted value for component "OPTION"*. Three of them came from a user's
+  system on 2026-09-23, out of `test_token_odd_option` in
+  `z2ui5_cl_ui5_util_context`, a test that feeds such rows on purpose. A test
+  that needs an odd row builds it field by field and passes the odd value
+  through a variable. Gated (`range_row`): only literals are judged, and a
+  header default (`VALUE #( sign = `I` option = `EQ` ( low = … ) )`) counts.
 - **`LOOP AT … WHERE` over a standard table is a sequential read** and wants
   `"#EC CI_SORTSEQ` on the statement. Fifteen were annotated in the three
   sweeps above, and the gate found seven more that had accumulated since.
@@ -456,6 +493,21 @@ pitfalls".
   to meet.
 - **An empty `CATCH` block** wants `##NO_HANDLER` — that is how you say the
   empty handler is deliberate. `CATCH cx_root INTO DATA(x) ##NO_HANDLER.`
+  No abaplint rule reads the block (measured on 2.120.52: `empty_structure`
+  lists no CATCH); 14 handlers without the pragma sit in the vendored ajson
+  test classes here (2026-09-19), which is what the backlog item beside this
+  section measures.
+- **A table declared without a key clause has the default key** — `DATA t
+  TYPE TABLE OF x.` is the same table as `… WITH DEFAULT KEY`: every
+  character-like component, in declaration order, and `SORT` without `BY`,
+  `COLLECT` and `DELETE ADJACENT DUPLICATES` use it unasked. abaplint's
+  `avoid_use.defaultKey` reports only the spelled-out form; the implicit one is
+  `fully_type_itabs`' ("Specify table type" / "Specify table key", measured
+  2026-09-23 on 2.120.52 and 2.120.59), so a repository that switches that
+  rule off loses it - `abap2UI5/samples-controls` app 034 shipped one and the
+  corpus grew a regex for it. Write `WITH EMPTY KEY`, or the key you mean. 31
+  sites in this repository (2026-09-19), all in the vendored `src/00/01` code
+  (`noIssues`) and the frozen `src/99` (not linted by `abaplint.jsonc`).
 - **`FIND`/`REPLACE … REGEX` is POSIX**, which is deprecated. `FIND PCRE` only
   exists on >= 7.55 and this repo targets v750/7.02. Prefer plain string logic;
   when a regex is genuinely needed, carry `##REGEX_POSIX` (the vendored AJSON
@@ -755,6 +807,48 @@ break one of those four.
   **Gate:** `npm run check:downport` over `src/` keeps the two positions an
   author writes 7.02-ready themselves, which the downport passes through as
   they stand: a `WITH [TABLE] KEY` operand and an internal-table `WHERE`.
+- **An object name over 25 characters breaks the namespace rename.** There is a
+  fourth target, and it is easy to forget because nothing in `src/` mentions it:
+  `build-rename.yaml` produces the `rename_<name>` branches for a consumer who
+  needs a different namespace, by running `abaplint --rename` with
+  `^z2ui5(.*)$` → `<namespace>$1`. The placeholder the PR gate renames to,
+  `znamespace`, is the **worst case the workflow allows** — 10 characters, five
+  more than `z2ui5` — so an object name of 27 characters becomes 32 and ABAP's
+  30-character limit refuses it. abaplint stops the whole rename with a bare
+  `Error: Name not allowed` and no file name, so the message does not say which
+  object it choked on; the line above it in the output does.
+  **Every object name in `src/` must be 25 characters or less.** The rule is
+  written down in `.github/abaplint/rename.jsonc`'s own header — and it is worth
+  reading that file before adding an object, because the only place the budget
+  appears is a comment inside the config that enforces it. Found on
+  `z2ui5_if_ui5_app_serializer` / `z2ui5_cl_ui5_app_serializer` (2026-09-19,
+  #2772): 27 characters each, the only two objects in the tree over the budget,
+  renamed to `z2ui5_if_ui5_serializer` / `z2ui5_cl_ui5_serializer` (23). Note
+  what did *not* see it — `check:naming` reads the namespace segment and not the
+  length, `check:abapgit` checks that `<CLSNAME>` matches the file name and not
+  how long either is, and abaplint over `src/` is green because the name is
+  legal until it is renamed. **Gate: `npm run rename`**, which `abaplint.yaml`
+  runs last for exactly this reason.
+- **Never pass `REF #( <fs> )` of a generically typed field symbol as an
+  operand.** `bind( REF #( <tab> ) )` with `<tab> TYPE STANDARD TABLE` is valid
+  at v750; the downport lowers the operand-position `REF #( )` into
+  `DATA temp17 LIKE REF TO <tab>.` plus `GET REFERENCE OF <tab> INTO temp17`,
+  and a 7.02–7.4x system refuses the declaration - *"The field "<TAB>"
+  specified under LIKE either does not have a type or has a generic type"*,
+  the whole class pool with it. Found in two test classes,
+  `z2ui5_cl_ui5_srv_bind` and `z2ui5_cl_ui5_srv_model` (2026-09-23). Every
+  check was green: the source is valid, the transpiled suite runs v750, and
+  abaplint's v702 `check_syntax` over the downported tree reports 0 issues
+  on that exact line (measured on 2.120.52). **Assign to a typed variable
+  first** - `lr_tab = REF #( <tab> ).` with `lr_tab TYPE REF TO data`, then
+  `bind( lr_tab )`; the downport turns that into a plain
+  `GET REFERENCE OF <tab> INTO lr_tab`. A typed field symbol is fine - the
+  temporary copies its type. **Gate:** `npm run downport` ends with
+  `downport-fix.mjs check-generic-like`, which reads the OUTPUT (the only
+  place the shape exists) and fails on any `DATA … LIKE [REF TO | LINE OF]`
+  a field symbol the same method types generically; `test.yaml` runs it on
+  every pull request. Generic *parameters* (`val TYPE any`) in the same
+  position are not covered - no case yet.
 - **Do not let an inline `DATA(…)` take its type from an offset/length
   expression.** `DATA(lv_field) = ls_attri->name+9.` made abaplint's
   `definitions_top` infer `TYPE name`, which is no DDIC type at v702, and
@@ -797,6 +891,7 @@ break one of those four.
   missing method, so a failing `run_unit_tests` is the gate.
 - **`xsdbool`, never `boolc`** — the downport converts `xsdbool` to `boolc`
   automatically, so writing `boolc` yourself breaks in the other direction.
+  **abaplint — `prefer_xsdbool`** decides it (measured on 2.120.52).
 - **Not every released class is released in ABAP Cloud.**
   `CAST cl_abap_elemdescr( … )->get_ddic_field( )` is not, and
   `z2ui5_cl_pop_table` had to derive the label from `absolute_name` plus a
