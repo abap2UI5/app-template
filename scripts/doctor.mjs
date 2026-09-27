@@ -42,6 +42,14 @@ import { readPinSites } from './check-pin.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/* The render gate's runtime package. It is @abap2ui5/linter-render from linter
+ * 0.8.0 on; up to 0.7.0 it was published as @abap2ui5/render-runtime, which
+ * the linter still finds when it is the one installed (a project made from an
+ * older template). So the doctor reads the new name first and the old one
+ * second, the same order the linter resolves them in. */
+export const RENDER_RUNTIME = '@abap2ui5/linter-render';
+export const LEGACY_RENDER_RUNTIME = '@abap2ui5/render-runtime';
+
 /* ------------------------------------------------------------- versions */
 
 /** `^0.6.1`, `v22.1.0`, `22` -> [major, minor, patch] (missing parts are 0);
@@ -119,11 +127,20 @@ export function checkInstalled(installed) {
   return ok(Object.entries(installed).map(([k, v]) => `${k}@${v}`).join(', '));
 }
 
-export function checkSameMinor(linter, runtime) {
+/** `runtimeName` is the package the runtime was found under - the current
+ *  name unless only the legacy one is installed. */
+export function checkSameMinor(linter, runtime, runtimeName = RENDER_RUNTIME) {
   if (!linter || !runtime) return fail('the linter or its render runtime is not installed', 'run `npm ci`');
-  if (sameMinor(linter, runtime)) return ok(`@abap2ui5/linter ${linter} and @abap2ui5/render-runtime ${runtime} are on one minor line`);
-  return fail(`@abap2ui5/linter ${linter} and @abap2ui5/render-runtime ${runtime} are not on the same minor line - they are cut from one tag`,
-    `npm install -D @abap2ui5/linter@${linter} @abap2ui5/render-runtime@${parseVersion(linter).slice(0, 2).join('.')}`);
+  const minor = parseVersion(linter).slice(0, 2).join('.');
+  if (runtimeName === LEGACY_RENDER_RUNTIME && cmpVersion(linter, '0.8.0') >= 0) {
+    return warn(`@abap2ui5/linter ${linter} renders through ${LEGACY_RENDER_RUNTIME} ${runtime} - the runtime is ${RENDER_RUNTIME} from 0.8.0 on, the old name is deprecated and gets no ${minor} release`,
+      `npm uninstall -D ${LEGACY_RENDER_RUNTIME} && npm install -D ${RENDER_RUNTIME}@${minor}`);
+  }
+  if (sameMinor(linter, runtime)) return ok(`@abap2ui5/linter ${linter} and ${runtimeName} ${runtime} are on one minor line`);
+  return fail(`@abap2ui5/linter ${linter} and ${runtimeName} ${runtime} are not on the same minor line - they are cut from one tag`,
+    cmpVersion(linter, '0.8.0') >= 0
+      ? `npm install -D @abap2ui5/linter@${linter} ${RENDER_RUNTIME}@${minor}`
+      : `npm install -D @abap2ui5/linter@${linter} ${runtimeName}@${minor}`);
 }
 
 /**
@@ -151,7 +168,7 @@ export function checkPin({ found, distinct, problems }) {
 /** The linter version CI runs comes from the Action pin in check.yml, the one
  *  `npm run check` runs from package.json; a rule can differ between the two. */
 export function checkActionPin(actionVersion, devRange) {
-  if (!devRange) return fail('package.json has no @abap2ui5/linter devDependency', 'add it: `npm install -D @abap2ui5/linter @abap2ui5/render-runtime`');
+  if (!devRange) return fail('package.json has no @abap2ui5/linter devDependency', `add it: \`npm install -D @abap2ui5/linter ${RENDER_RUNTIME}\``);
   if (!actionVersion) {
     return warn('check.yml names no abap2UI5/linter action version this can read (expected `uses: abap2UI5/linter@<sha> # vX.Y.Z`)',
       'keep the version tag in the comment next to the SHA pin so the pairing stays checkable');
@@ -231,7 +248,7 @@ export function checkCompat(compat, pinned) {
 
 /**
  * `npm run watch` / `npm run watch:render` are `abap2ui5lint --watch`, a flag
- * the linter gained after 0.6.1. `cli` is the text of the installed linter's
+ * the linter gained after 0.6.1 (0.7.0 has it; the template pins ^0.8.0). `cli` is the text of the installed linter's
  * cli.mjs (null when it is not there - the install check has that), `version`
  * its version for the message. The probe is the flag's spelling in the CLI's
  * own source: an older linter answers `unknown option '--watch'` and exit 2,
@@ -242,7 +259,7 @@ export function checkWatch(cli, version) {
   if (cli === null) return ok('linter --watch: the linter is not installed - check skipped');
   if (cli.includes('--watch')) return ok(`@abap2ui5/linter ${version ?? ''} has --watch - \`npm run watch\` re-runs the check on every save`.replace(/\s+/g, ' '));
   return warn(`@abap2ui5/linter ${version ?? ''} has no --watch yet - \`npm run watch\` and \`npm run watch:render\` print its unknown-option error`.replace(/\s+/g, ' '),
-    'bump @abap2ui5/linter (the flag arrives with the release after 0.6.1; move @abap2ui5/render-runtime with it, they share a minor line)');
+    `bump @abap2ui5/linter (the flag arrived with 0.7.0; move ${RENDER_RUNTIME} with it, they share a minor line)`);
 }
 
 /** The whole report's verdict: exit 1 only when something FAILed. */
@@ -265,7 +282,7 @@ const installedVersion = (pkg) => {
 async function findChromium() {
   const browsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || '';
   let resolved = null;
-  for (const from of [path.join(ROOT, 'package.json'), path.join(ROOT, 'node_modules/@abap2ui5/render-runtime/package.json')]) {
+  for (const from of [path.join(ROOT, 'package.json'), ...[RENDER_RUNTIME, LEGACY_RENDER_RUNTIME].map((n) => path.join(ROOT, 'node_modules', n, 'package.json'))]) {
     try {
       resolved = createRequire(from).resolve('playwright');
       break;
@@ -298,10 +315,14 @@ async function main() {
   results.push(checkNode(process.version, readIf('.nvmrc') ?? ''));
 
   const linter = installedVersion('@abap2ui5/linter');
-  const runtime = installedVersion('@abap2ui5/render-runtime');
+  // the current name first, the legacy one only when it is the one installed
+  const current = installedVersion(RENDER_RUNTIME);
+  const legacy = current ? null : installedVersion(LEGACY_RENDER_RUNTIME);
+  const runtimeName = legacy ? LEGACY_RENDER_RUNTIME : RENDER_RUNTIME;
+  const runtime = current ?? legacy;
   const abaplint = installedVersion('@abaplint/cli');
-  results.push(checkInstalled({ '@abap2ui5/linter': linter, '@abap2ui5/render-runtime': runtime, '@abaplint/cli': abaplint }));
-  results.push(checkSameMinor(linter, runtime));
+  results.push(checkInstalled({ '@abap2ui5/linter': linter, [runtimeName]: runtime, '@abaplint/cli': abaplint }));
+  results.push(checkSameMinor(linter, runtime, runtimeName));
   results.push(checkChromium(await findChromium()));
 
   const pin = readPinSites(ROOT);

@@ -27,7 +27,7 @@
   // Load every view in a headless browser and see whether UI5 accepts it -
   // the check no static rule can make. Saying so here rather than leaving it
   // to the default is what makes it a REQUIREMENT: an unasked-for render gate
-  // steps aside with a warning when @abap2ui5/render-runtime is missing and
+  // steps aside with a warning when @abap2ui5/linter-render is missing and
   // the run stays green, which is how a gate quietly stops meaning anything.
   // Asked for, a missing runtime fails the run instead. Use
   // `npm run check:abap2ui5:fast` for the quick property-only pass while

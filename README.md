@@ -137,9 +137,8 @@ whether the installed linter has `--watch`.
 `watch` is the loop for Eclipse ADT users who pull with abapGit into this
 checkout: save in ADT, pull, read the report — the linter re-runs on every
 change under `src/` (VS Code users have the extension's live check instead).
-The `--watch` flag arrives with the `@abap2ui5/linter` release after 0.6.1, so
-on the `^0.6.1` pinned here both `watch` scripts print the linter's
-`unknown option '--watch'` until the devDependency is bumped — `doctor` says
+The `--watch` flag arrived with `@abap2ui5/linter` 0.7.0; on an older linter
+both `watch` scripts print its `unknown option '--watch'` — `doctor` says
 whether the installed linter has it.
 
 `check:pin` is the small gate around the one pin nothing else can move: the
