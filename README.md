@@ -61,7 +61,7 @@ started any way is the same project:
    GitHub is the first).
 2. Install the [abap2UI5 framework](https://github.com/abap2UI5/abap2UI5) in
    your system via [abapGit](https://abapgit.org/), then install this repo
-   the same way. The starter app needs framework **1.144.0 or newer** — that
+   the same way. The starter app needs framework **1.145.0 or newer** — that
    is the release the local gates lint against, pinned in `abaplint.jsonc`.
 3. Create an ICF endpoint for the framework's HTTP handler (see the
    [documentation](https://abap2ui5.github.io/docs/)) and open
@@ -137,9 +137,8 @@ whether the installed linter has `--watch`.
 `watch` is the loop for Eclipse ADT users who pull with abapGit into this
 checkout: save in ADT, pull, read the report — the linter re-runs on every
 change under `src/` (VS Code users have the extension's live check instead).
-The `--watch` flag arrives with the `@abap2ui5/linter` release after 0.6.1, so
-on the `^0.6.1` pinned here both `watch` scripts print the linter's
-`unknown option '--watch'` until the devDependency is bumped — `doctor` says
+The `--watch` flag arrived with `@abap2ui5/linter` 0.7.0; on an older linter
+both `watch` scripts print its `unknown option '--watch'` — `doctor` says
 whether the installed linter has it.
 
 `check:pin` is the small gate around the one pin nothing else can move: the

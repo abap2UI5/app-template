@@ -12,9 +12,9 @@ with the validation gates preconfigured.
 | `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
 | `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
 | `src/zcl_app_001.clas.testclasses.abap` | ABAP Unit tests for the starter app: a test double for `z2ui5_if_client` drives `main( )` through the first start, a `SAVE` event and a navigated roundtrip. Runs on the system (ADT `Ctrl+Shift+F10`); the local gates check it statically — see "Testing an app" below |
-| `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + `@abap2ui5/render-runtime`, on the same minor line — they are cut from one tag) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
+| `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + its render runtime `@abap2ui5/linter-render`, on the same minor line — they are cut from one tag) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
 | `package-lock.json` | Committed on purpose: `npm ci` reads it, so the gate versions CI runs are the ones you ran locally |
-| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.144.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
+| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.145.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
 | `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
 | `.github/workflows/check.yml` | CI: the framework pin, then abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
 | `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in more than one place and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
@@ -58,10 +58,9 @@ a developer whose editor has no linter in it (Eclipse ADT, with abapGit
 pulling the classes into this checkout: save, pull, read), not a gate; it
 refuses `--fix`, `--screenshot` and the JSON/SARIF outputs, so `npm run fix`
 stays a separate step. VS Code users have the extension's live check instead.
-The flag arrives with the `@abap2ui5/linter` release after 0.6.1 - on the
-`^0.6.1` this repository pins, both scripts print the linter's
-`unknown option '--watch'` and exit 2 until the devDependency is bumped
-(`npm run doctor` says whether the installed linter has it).
+The flag arrived with `@abap2ui5/linter` 0.7.0; on an older linter both
+scripts print its `unknown option '--watch'` and exit 2 (`npm run doctor` says
+whether the installed linter has it).
 
 `npm run check:all` is the local equivalent of the CI job — a green run of it
 means CI passes. (`npm run check` is the two gates alone and skips the pin,

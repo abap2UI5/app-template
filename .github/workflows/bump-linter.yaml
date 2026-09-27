@@ -10,7 +10,10 @@
 # The render runtime rides along deliberately: the two are ONE release with
 # one version (the linter's metadata snapshot is generated from exactly the
 # @openui5 version pinned over there), so bumping one alone is the drift the
-# split was allowed on condition of avoiding.
+# split was allowed on condition of avoiding. It is @abap2ui5/linter-render
+# from 0.8.0 on; up to 0.7.0 it was published as @abap2ui5/render-runtime
+# (deprecated now). The step below installs whichever name carries the
+# linter's version, so a lock that still names the old package moves too.
 #
 # The Action pin in check.yml (abap2UI5/linter@<sha> # vX.Y.Z) is NOT moved
 # here - it is a commit pin a human bumps deliberately, and the PR body
@@ -46,7 +49,16 @@ jobs:
         VERSION=$(npm view @abap2ui5/linter version)
         test -n "$VERSION"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        npm install --save-dev "@abap2ui5/linter@$VERSION" "@abap2ui5/render-runtime@$VERSION"
+        # @abap2ui5/linter-render from 0.8.0 on, @abap2ui5/render-runtime up
+        # to 0.7.0 - whichever carries this version. The old name is dropped
+        # from package.json when the new one takes over, so the two are never
+        # installed side by side.
+        RT=@abap2ui5/linter-render
+        npm view "$RT@$VERSION" version >/dev/null 2>&1 || RT=@abap2ui5/render-runtime
+        if [ "$RT" = "@abap2ui5/linter-render" ] && node -e "process.exit(require('./package.json').devDependencies?.['@abap2ui5/render-runtime'] ? 0 : 1)"; then
+          npm uninstall --save-dev @abap2ui5/render-runtime
+        fi
+        npm install --save-dev "@abap2ui5/linter@$VERSION" "$RT@$VERSION"
         if git diff --quiet package.json package-lock.json; then
           echo "changed=false" >> "$GITHUB_OUTPUT"
         else
@@ -69,9 +81,10 @@ jobs:
         title: 'chore: bump @abap2ui5/linter'
         commit-message: 'chore: bump @abap2ui5/linter to ${{ steps.pin.outputs.version }}'
         body: |
-          Weekly move of `@abap2ui5/linter` and `@abap2ui5/render-runtime` to
-          the latest version on npm (${{ steps.pin.outputs.version }}). The
-          template's own gates ran green in the workflow that opened this PR.
+          Weekly move of `@abap2ui5/linter` and its render runtime
+          (`@abap2ui5/linter-render`) to the latest version on npm
+          (${{ steps.pin.outputs.version }}). The template's own gates ran
+          green in the workflow that opened this PR.
 
           If `check.yml` still pins an older `abap2UI5/linter@<sha>` Action,
           bump that pin in this PR too - the Action and the npm package are

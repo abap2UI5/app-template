@@ -67,11 +67,24 @@ test('doctor: installed gates - a missing package names npm ci', () => {
 });
 
 test('doctor: linter and render runtime have to share a minor line', () => {
-  assert.equal(checkSameMinor('0.6.1', '0.6.2').status, 'OK');
-  const r = checkSameMinor('0.7.0', '0.6.1');
+  assert.equal(checkSameMinor('0.8.0', '0.8.1').status, 'OK');
+  assert.match(checkSameMinor('0.8.0', '0.8.0').text, /@abap2ui5\/linter-render 0\.8\.0/);
+  const r = checkSameMinor('0.9.0', '0.8.0');
   assert.equal(r.status, 'FAIL');
-  assert.match(r.remedy, /render-runtime@0\.7/);
-  assert.equal(checkSameMinor(null, '0.6.1').status, 'FAIL');
+  assert.match(r.remedy, /@abap2ui5\/linter-render@0\.9/);
+  assert.equal(checkSameMinor(null, '0.8.0').status, 'FAIL');
+});
+
+test('doctor: the legacy runtime name - fine up to 0.7, a WARN naming the rename from 0.8.0 on', () => {
+  const old = checkSameMinor('0.7.0', '0.7.0', '@abap2ui5/render-runtime');
+  assert.equal(old.status, 'OK');
+  assert.match(old.text, /@abap2ui5\/render-runtime 0\.7\.0/);
+  // a linter behind the legacy runtime is moved under the legacy name
+  assert.match(checkSameMinor('0.7.0', '0.6.1', '@abap2ui5/render-runtime').remedy, /@abap2ui5\/render-runtime@0\.7/);
+  // 0.8.0 still renders through the old package, but nothing publishes it any more
+  const renamed = checkSameMinor('0.8.0', '0.7.0', '@abap2ui5/render-runtime');
+  assert.equal(renamed.status, 'WARN');
+  assert.match(renamed.remedy, /npm uninstall -D @abap2ui5\/render-runtime && npm install -D @abap2ui5\/linter-render@0\.8/);
 });
 
 test('doctor: chromium - playwright path, the linter fallback, or the install command', () => {

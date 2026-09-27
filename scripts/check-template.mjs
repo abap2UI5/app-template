@@ -25,8 +25,9 @@
  *
  *   a class name `rename` blesses is one `abaplint.jsonc` accepts.
  *
- *   the linter/render-runtime pairing is installable - checked in both
- *   directions, since the published peer range moves without this repository.
+ *   the linter/render-runtime pairing (@abap2ui5/linter-render) is
+ *   installable - checked in both directions, since the published peer range
+ *   moves without this repository.
  *
  * It does NOT run from the shared package.json, for the reason it exists to
  * enforce: a project has no template.json to gate.
@@ -192,9 +193,12 @@ for (const file of SPEC.substitutions.class.files) {
 }
 
 /* One more claim this repository makes about itself, and the only one with an
- * expiry date. `@abap2ui5/linter` and `@abap2ui5/render-runtime` are cut from
- * one tag and the render gate wants the same minor line. Whether that pairing
- * is installable is decided by the PUBLISHED linter's peer range, which moves
+ * expiry date. `@abap2ui5/linter` and its render runtime are cut from one tag
+ * and the render gate wants the same minor line. The runtime is
+ * `@abap2ui5/linter-render` from 0.8.0 on; up to 0.7.0 it was published as
+ * `@abap2ui5/render-runtime`, and a package.json still naming the old one is
+ * read under that name - the linter declares both as optional peers. Whether
+ * that pairing is installable is decided by the PUBLISHED linter's peer range, which moves
  * without this repository: 0.2.1 declared `peerOptional render-runtime ^0.1.0`
  * and needed an `overrides` block; 0.2.2 widened the range and made that block
  * obsolete; 0.5.1 accepts `^0.5.0` outright. So this checks the invariant in
@@ -205,10 +209,16 @@ const lockFile = path.join(ROOT, 'package-lock.json');
 if (fs.existsSync(lockFile)) {
   const lock = JSON.parse(fs.readFileSync(lockFile, 'utf8'));
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const override = pkg.overrides?.['@abap2ui5/linter']?.['@abap2ui5/render-runtime'];
+  const runtime = ['@abap2ui5/linter-render', '@abap2ui5/render-runtime']
+    .find((name) => pkg.devDependencies?.[name]) ?? '@abap2ui5/linter-render';
+  const override = pkg.overrides?.['@abap2ui5/linter']?.[runtime];
   const peer = lock.packages?.['node_modules/@abap2ui5/linter']
-    ?.peerDependencies?.['@abap2ui5/render-runtime'];
-  const want = pkg.devDependencies?.['@abap2ui5/render-runtime'];
+    ?.peerDependencies?.[runtime];
+  const want = pkg.devDependencies?.[runtime];
+  if (!want) {
+    problems.push('package.json names no render runtime - the render gate `"render": true` asks for '
+      + 'cannot run; `npm install -D @abap2ui5/linter-render` at the linter\'s minor line');
+  }
   // No semver dependency in a script that has to run before `npm ci`, so
   // this reads only the two range shapes the linter has ever published:
   // `^x.y.z` and `>=a.b.c <d.e.f`. It used to be a substring test ("does the
@@ -234,16 +244,16 @@ if (fs.existsSync(lockFile)) {
       return (!ge || cmp(version, ge[1]) >= 0) && (!lt || cmp(version, lt[1]) < 0);
     }
     // a shape this check has never seen: say so instead of guessing either way
-    problems.push(`the published @abap2ui5/linter's render-runtime peer range "${range}" is a shape `
+    problems.push(`the published @abap2ui5/linter's ${runtime} peer range "${range}" is a shape `
       + 'this check cannot read - teach scripts/check-template.mjs the new shape');
     return true;
   };
-  if (override && peer && accepts(peer, wantVersion)) {
-    problems.push(`the published @abap2ui5/linter now accepts render-runtime ${peer} - `
+  if (want && override && peer && accepts(peer, wantVersion)) {
+    problems.push(`the published @abap2ui5/linter now accepts ${runtime} ${peer} - `
       + "package.json's `overrides` block for it is obsolete, remove it and re-run `npm install`");
   }
-  if (!override && peer && !accepts(peer, wantVersion)) {
-    problems.push(`the published @abap2ui5/linter accepts render-runtime ${peer}, not the ${want} `
+  if (want && !override && peer && !accepts(peer, wantVersion)) {
+    problems.push(`the published @abap2ui5/linter accepts ${runtime} ${peer}, not the ${want} `
       + 'this repository asks for - `npm ci` will refuse the pairing without an `overrides` block');
   }
 }
