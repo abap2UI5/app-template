@@ -248,7 +248,7 @@ export function checkCompat(compat, pinned) {
 
 /**
  * `npm run watch` / `npm run watch:render` are `abap2ui5lint --watch`, a flag
- * the linter gained after 0.6.1 (0.7.0 has it; the template pins ^0.8.1). `cli` is the text of the installed linter's
+ * the linter gained after 0.6.1 (0.7.0 has it; the template pins ^0.8.2). `cli` is the text of the installed linter's
  * cli.mjs (null when it is not there - the install check has that), `version`
  * its version for the message. The probe is the flag's spelling in the CLI's
  * own source: an older linter answers `unknown option '--watch'` and exit 2,
