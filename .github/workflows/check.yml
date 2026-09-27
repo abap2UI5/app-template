@@ -24,7 +24,7 @@
 #   workflow, and not by the action.
 #
 #   That does mean the linter version CI runs comes from the action pin, not
-#   from package-lock.json. The pin below is the action's `v0.8.0` release,
+#   from package-lock.json. The pin below is the action's `v0.8.1` release,
 #   which is the same 0.8.x line `package.json` depends on - keep the two
 #   moving together, or a local `npm run check` and this job can eventually
 #   disagree about a rule. They HAD parted: the pin sat on v0.2.1 while the
@@ -101,7 +101,7 @@ jobs:
       # build/screenshots` (photographs every checked view, for an
       # upload-artifact step to publish - it runs even when the check failed).
       - name: abap2UI5-linter (property gate + headless render)
-        uses: abap2UI5/linter@35404df6a7e17a20ce2c627d4b3f64a5284a7f02 # v0.8.0
+        uses: abap2UI5/linter@09bd158cdd77aefb6a9d06403dd5a161f23ce733 # v0.8.1
 
       # The same report as markdown on the run's own page - property gate only,
       # since the step above already decided whether the views load. This one
