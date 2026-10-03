@@ -203,6 +203,25 @@ skips test includes, so `npm run check` stays the gate it is.
 - **Dev container** — open the repository in a container (`.devcontainer/`)
   and `npm ci`, Playwright's Chromium and the three extensions are there.
 
+## Build with AI
+
+A project made from this template is ready for an AI agent as it stands,
+with nothing to install for it:
+
+- **`AGENTS.md`** — the app-building reference, read by any agent that
+  follows the AGENTS.md convention (`CLAUDE.md` points Claude Code at it)
+- **`.claude/skills/`** — the framework's four skills, loaded by Claude Code
+  on demand
+- **`.mcp.json`** — the abap2UI5 MCP server, registered for Claude Code
+
+Working on abap2UI5 apps outside a project made from this template? The
+framework repository also publishes a Claude Code plugin:
+
+```text
+/plugin marketplace add abap2UI5/abap2UI5
+/plugin install abap2ui5@abap2ui5
+```
+
 ## Learn more
 
 - [AGENTS.md](AGENTS.md) — the complete app-building reference (also for humans)
