@@ -1,13 +1,14 @@
 {
   "name": "create-abap2ui5-app",
-  "version": "0.1.0",
-  "description": "Start an abap2UI5 app project from abap2UI5/app-template: npm create abap2ui5-app@latest my-app -- --class zcl_my_app",
+  "version": "0.2.0",
+  "description": "Start an abap2UI5 app project from abap2UI5/app-template (npm create abap2ui5-app@latest my-app -- --class zcl_my_app), or add its agent setup and gates to an existing one (npm create abap2ui5-app@latest -- --agent-setup)",
   "type": "module",
   "bin": {
     "create-abap2ui5-app": "index.mjs"
   },
   "files": [
     "index.mjs",
+    "agent-setup.mjs",
     "substitute.mjs",
     "README.md"
   ],
@@ -18,7 +19,9 @@
     "ui5",
     "create",
     "template",
-    "scaffold"
+    "scaffold",
+    "agents",
+    "claude"
   ],
   "repository": {
     "type": "git",

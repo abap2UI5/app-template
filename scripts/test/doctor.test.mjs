@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import {
   parseVersion, cmpVersion, sameMinor, parseJsonc,
   checkNode, checkInstalled, checkSameMinor, checkChromium, checkPin, checkActionPin,
-  checkSidecar, checkLintConfig, checkExtension, checkCompat, checkWatch, summarise,
+  checkSidecar, sourceFolder, checkLintConfig, checkExtension, checkCompat, checkWatch, summarise,
 } from '../doctor.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -141,6 +141,15 @@ test('doctor: sidecars - BOM, LF, CLSNAME, and WITH_UNIT_TESTS for a class with 
   assert.equal(tests.status, 'WARN');
   assert.match(tests.remedy, /UNICODE/);
   assert.equal(checkSidecar({ abap: 'src/zcl_x.clas.abap', xml: sidecar('ZCL_X', '  <WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>\n'), hasTests: true }).status, 'OK');
+});
+
+test('doctor: the classes are where .abapgit.xml says - src/ when it says nothing', () => {
+  assert.equal(sourceFolder(fs.readFileSync(path.join(ROOT, '.abapgit.xml'), 'utf8')), 'src');
+  assert.equal(sourceFolder('<STARTING_FOLDER>/abap/src/</STARTING_FOLDER>'), 'abap/src');
+  assert.equal(sourceFolder('<STARTING_FOLDER>/</STARTING_FOLDER>'), '.');
+  assert.equal(sourceFolder(null), 'src');
+  const r = checkSidecar({ abap: 'abap/src/zcl_x.clas.abap', xml: null, hasTests: false });
+  assert.match(r.text, /abap\/src\/zcl_x\.clas\.xml/, 'the sidecar is named next to its class, not in src/');
 });
 
 test('doctor: the real sidecars in src/ pass, test include included', () => {

@@ -15,6 +15,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -65,14 +66,36 @@ test('check-pin: the three places name one release, and the gate passes', () => 
 });
 
 test('check-pin: a missing optional site is forgiven, a missing required one is not', () => {
-  // A project made from this template writes its own README, so check-pin has
-  // to survive its absence - that is what makes the script shippable at all.
+  // A project made from this template writes its own README, and a project
+  // that took only the agent setup keeps its own AGENTS.md - so check-pin has
+  // to survive both prose files without the sentence. That is what makes the
+  // script shippable at all. The pin itself is not optional.
   const src = read('scripts/check-pin.mjs');
   const optionalFor = (file) => new RegExp(`file: '${file}'[\\s\\S]{0,200}?optional: true`).test(src);
   assert.ok(optionalFor('README.md'), 'README.md must be optional - a project writes its own');
-  assert.ok(!optionalFor('abaplint.jsonc'), 'abaplint.jsonc ships, so its absence is a real defect');
-  assert.ok(!optionalFor('AGENTS.md'), 'AGENTS.md ships, so its absence is a real defect');
+  assert.ok(optionalFor('AGENTS.md'), 'AGENTS.md must be optional - an agent-setup project keeps its own');
+  assert.ok(!optionalFor('abaplint.jsonc'), 'abaplint.jsonc is the pin itself, so its absence is a real defect');
   assert.match(src, /if \(!found\.length\)/, 'with every site optional the gate must not pass by checking nothing');
+});
+
+test('check-pin: an optional file without the sentence is skipped; one naming another release still fails', async (t) => {
+  const { readPinSites } = await import(path.join(ROOT, 'scripts/check-pin.mjs'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'a2ui5-pin-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.copyFileSync(path.join(ROOT, 'abaplint.jsonc'), path.join(dir, 'abaplint.jsonc'));
+  fs.writeFileSync(path.join(dir, 'README.md'), '# my app\n');
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# my own agent guide\n');
+  let r = readPinSites(dir);
+  assert.deepEqual(r.problems, []);
+  assert.deepEqual(r.skipped.map((s) => s.file), ['README.md', 'AGENTS.md']);
+
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), 'The framework is pinned to release tag `1.0.0`.\n');
+  r = readPinSites(dir);
+  assert.equal(r.problems.length, 1);
+  assert.match(r.problems[0], /disagree/);
+
+  fs.rmSync(path.join(dir, 'abaplint.jsonc'));
+  assert.match(readPinSites(dir).problems.join('\n'), /abaplint\.jsonc: gone/);
 });
 
 /* ----------------------------------------------------------- check-template */
