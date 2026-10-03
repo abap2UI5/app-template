@@ -194,8 +194,10 @@ for (const file of SPEC.substitutions.class.files) {
 
 /* agentSetup - what `npm create abap2ui5-app -- --agent-setup` adds to a
  * project that did not start here - is a SUBSET of files.shared, and the same
- * kind of claim: only this repository can check it, and the create package
- * acts on it in somebody else's repository. So: every file it names is a
+ * kind of claim: only this repository can check it, and three programs act
+ * on it in somebody else's repository - the create package, mcp-server's
+ * `add_agent_setup` tool and the VS Code extension's "Add Agent Setup to
+ * Workspace" command. So: every file it names is a
  * shared one; every shared file is either in it or left out WITH a reason (a
  * file added to files.shared has to be decided about here too); the edits it
  * makes for another source folder find their text; and the set is closed
