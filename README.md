@@ -55,6 +55,21 @@ started any way is the same project:
 4. **An MCP-capable agent**: the
    [mcp-server](https://github.com/abap2UI5/mcp-server)'s `scaffold_app` tool.
 
+**Already have an abap2UI5 project?** Most do — and the agent setup is worth
+as much there. Run, in that project's directory:
+
+```bash
+npm create abap2ui5-app@latest -- --agent-setup
+```
+
+It adds `AGENTS.md`, `CLAUDE.md`, `.claude/` (the skills and the permission
+allowlist), `.mcp.json`, the two gates' configs, the `npm run check*` scripts
+and `check.yml` — never touching your classes, never overwriting a file you
+have (it skips it and says so), only adding to your `package.json` and
+`.gitignore`, and pointing the gates at your `.abapgit.xml`'s
+`STARTING_FOLDER`. The file set and the reason for each are in
+[`create/README.md`](create/README.md#adding-the-agent-setup-to-an-existing-project).
+
 ## Quick start
 
 1. Start a project one of the four ways above (**Use this template** on

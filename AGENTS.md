@@ -139,6 +139,11 @@ framework's. Fix them upstream; a regeneration overwrites the copies.
 Starting a project without this repository's own scaffolding: `npm create
 abap2ui5-app@latest my-app -- --class zcl_my_app` writes the same files from
 the template's `main` branch (see the template's README for the four ways).
+Adding this setup to a project that did not start from the template: `npm
+create abap2ui5-app@latest -- --agent-setup` in its directory writes the agent
+files and the gates (`template.json`'s `agentSetup` says which), skips every
+file the project already has, and only adds to `package.json` and
+`.gitignore`.
 
 The rest of this file is the complete app-building reference — read it before
 writing or changing any app class.

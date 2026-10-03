@@ -28,6 +28,12 @@
  * Usage:
  *   npm create abap2ui5-app@latest my-app -- --class zcl_my_app
  *       [--package "My App"] [--repo my-app] [--from <local app-template checkout>]
+ *   npm create abap2ui5-app@latest -- --agent-setup [dir] [--from <checkout>]
+ *
+ * The second form is for a project that already exists - most abap2UI5
+ * projects never started from the template. It adds the agent setup and the
+ * gates to `dir` (default: the current directory) and never overwrites a file;
+ * `./agent-setup.mjs` says how, `template.json`'s `agentSetup` says what.
  *
  * No dependencies: `fetch`, `fs` and `path` are all it needs, and Node 22 has
  * all three.
@@ -35,11 +41,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { classNameProblem, substitutePath, substituteText, substitutedFiles } from './substitute.mjs';
+import { agentSetupNextSteps, pinProblems, planAgentSetup, writePlan } from './agent-setup.mjs';
 
 export const RAW = 'https://raw.githubusercontent.com/abap2UI5/app-template/main/';
 const SPEC_FILE = 'template.json';
 
 const USAGE = `usage: npm create abap2ui5-app@latest <dir> -- --class <zcl_your_app> [--package "Your App"] [--repo <name>] [--from <checkout>]
+       npm create abap2ui5-app@latest -- --agent-setup [<dir>] [--from <checkout>]
 
   <dir>      the project directory to create (must not exist, or be empty)
   --class    the app class, lower case: ^zcl_ or ^zcx_, at most 30 characters
@@ -48,17 +56,30 @@ const USAGE = `usage: npm create abap2ui5-app@latest <dir> -- --class <zcl_your_
   --repo     the repository name written to .abapgit.xml and package.json
              (default: the directory's name)
   --from     read the template from a local abap2UI5/app-template checkout
-             instead of fetching it from GitHub`;
+             instead of fetching it from GitHub
+
+  --agent-setup
+             add the template's agent setup (AGENTS.md, CLAUDE.md, .claude/,
+             .mcp.json) and its two gates (lint configs, package.json scripts
+             and devDependencies, .github/workflows/check.yml) to an EXISTING
+             project in <dir> (default: the current directory). Never touches
+             src/, never overwrites a file - it skips it and says so - and only
+             adds to package.json and .gitignore. No --class: the project has
+             its classes`;
+
+/** The options that are switches, not `--name value` pairs. */
+const FLAGS = { '--agent-setup': 'agentSetup' };
 
 /** The command line, as a plain object. Exported for the tests. */
 export function parseArgs(argv) {
-  const out = { dir: undefined, class: undefined, package: undefined, repo: undefined, from: undefined, help: false };
+  const out = { dir: undefined, class: undefined, package: undefined, repo: undefined, from: undefined, agentSetup: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') out.help = true;
+    else if (FLAGS[a]) out[FLAGS[a]] = true;
     else if (a.startsWith('--')) {
       const key = a.slice(2);
-      if (!(key in out) || key === 'help' || key === 'dir') throw new Error(`unknown option ${a}`);
+      if (!(key in out) || key === 'help' || key === 'dir' || key === 'agentSetup') throw new Error(`unknown option ${a}`);
       if (i + 1 >= argv.length) throw new Error(`${a} needs a value`);
       out[key] = argv[++i];
     } else if (out.dir === undefined) out.dir = a;
@@ -110,8 +131,9 @@ export async function materialise(spec, read, { newClass, newPackage, newRepo })
   return files;
 }
 
-/** Empty, or not there yet: the only two states a target directory may be in.
- *  Writing into somebody's existing project is not a thing this does. */
+/** Empty, or not there yet: the only two states a NEW project's directory may
+ *  be in. Adding to somebody's existing project is --agent-setup's job, which
+ *  takes a narrower set of files and never overwrites one. */
 export function targetProblem(dir) {
   if (!fs.existsSync(dir)) return null;
   if (!fs.statSync(dir).isDirectory()) return `${dir} exists and is not a directory`;
@@ -135,6 +157,105 @@ AGENTS.md is the complete app-building reference; README.md is yours to write.
 `;
 }
 
+/** An existing directory: the only state --agent-setup writes into. A
+ *  directory that is not there yet is a new project, which is the other mode. */
+export function agentTargetProblem(dir) {
+  if (!fs.existsSync(dir)) return `${dir} does not exist - --agent-setup adds to an existing project; for a new one leave --agent-setup out and pass --class`;
+  if (!fs.statSync(dir).isDirectory()) return `${dir} exists and is not a directory`;
+  return null;
+}
+
+async function agentSetup(args) {
+  for (const opt of ['class', 'package', 'repo']) {
+    if (args[opt] !== undefined) {
+      console.error(`create-abap2ui5-app: --${opt} has no meaning with --agent-setup - it adds to a project that already has its classes, package and name\n\n${USAGE}`);
+      return 2;
+    }
+  }
+  const shown = args.dir ?? '.';
+  const dir = path.resolve(shown);
+  const busy = agentTargetProblem(dir);
+  if (busy) {
+    console.error(`create-abap2ui5-app: ${busy}`);
+    return 2;
+  }
+
+  let source;
+  try {
+    source = sourceFor(args.from);
+  } catch (err) {
+    console.error(`create-abap2ui5-app: ${err.message}`);
+    return 2;
+  }
+  let spec;
+  try {
+    spec = JSON.parse((await source.read(SPEC_FILE)).toString('utf8'));
+  } catch (err) {
+    console.error(`create-abap2ui5-app: could not read the template's ${SPEC_FILE} from ${source.name} (${err.message})`);
+    return 1;
+  }
+  if (!spec.agentSetup?.files) {
+    console.error(`create-abap2ui5-app: the template's ${SPEC_FILE} (${source.name}) has no agentSetup - it predates --agent-setup`);
+    return 1;
+  }
+
+  let plan;
+  let templateCheckPin = null;
+  try {
+    plan = await planAgentSetup(spec, source.read, dir);
+    if (spec.agentSetup.files['scripts/check-pin.mjs']) templateCheckPin = await source.read('scripts/check-pin.mjs');
+  } catch (err) {
+    console.error(`create-abap2ui5-app: ${err.message} - nothing was written`);
+    return 1;
+  }
+  writePlan(dir, plan.actions);
+
+  const width = Math.max(...plan.actions.map((a) => a.path.length));
+  const verb = { add: 'added', merge: 'merged', skip: 'skipped' };
+  console.log(`create-abap2ui5-app --agent-setup: ${dir}`);
+  console.log(`  template   ${source.name}`);
+  console.log(`  sources    ${plan.folder}/ (${plan.from})`);
+  for (const a of plan.actions) {
+    console.log(`  ${verb[a.kind].padEnd(8)} ${a.detail ? `${a.path.padEnd(width)}  ${a.detail}` : a.path}`);
+  }
+  const written = plan.actions.filter((a) => a.kind !== 'skip').length;
+  const skipped = plan.actions.length - written;
+  console.log(`create-abap2ui5-app: ${written} written, ${skipped} skipped${written ? '' : ' - the agent setup was already complete, nothing to do'}`);
+
+  const warnings = [...plan.warnings];
+  // Whose check:pin check.yml's first step runs: the template's, or one the
+  // project kept - the doctor reads the template's either way.
+  const scriptOf = (text) => {
+    try {
+      return JSON.parse(text).scripts?.['check:pin'];
+    } catch {
+      return undefined;
+    }
+  };
+  const pkgFile = path.join(dir, 'package.json');
+  const ownsCheckPin = fs.existsSync(pkgFile)
+    && scriptOf(fs.readFileSync(pkgFile, 'utf8')) === scriptOf((await source.read('package.json')).toString('utf8'));
+  if (templateCheckPin) {
+    const pin = await pinProblems(dir, templateCheckPin);
+    if (pin.length) {
+      const who = ownsCheckPin
+        ? '`npm run check:pin` (the first step of check.yml) and `npm run doctor` would fail as things stand:'
+        : '`npm run doctor` would report the framework pin as FAIL (your own check:pin script is not affected):';
+      warnings.push(`${who}\n`
+        + pin.map((p) => `      ${p.split('\n').join('\n      ')}`).join('\n')
+        + '\n    abaplint.jsonc\'s "branch" is the framework pin - a release tag such as "1.145.0", not a branch - and\n'
+        + '    every other place that names a release has to agree with it; scripts/check-pin.mjs lists the places');
+    }
+  }
+  if (warnings.length) {
+    console.log('\nWorth knowing:');
+    for (const w of warnings) console.log(`  - ${w}`);
+  }
+  const wroteAgents = plan.actions.some((a) => a.path === 'AGENTS.md' && a.kind === 'add');
+  console.log(agentSetupNextSteps(shown, { folder: plan.folder, wroteAgents }));
+  return 0;
+}
+
 async function main(argv) {
   let args;
   try {
@@ -143,6 +264,7 @@ async function main(argv) {
     console.error(`create-abap2ui5-app: ${err.message}\n\n${USAGE}`);
     return 2;
   }
+  if (args.agentSetup && !args.help) return agentSetup(args);
   if (args.help || !args.dir) {
     console.error(USAGE);
     return args.help ? 0 : 2;

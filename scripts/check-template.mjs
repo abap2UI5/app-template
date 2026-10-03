@@ -192,6 +192,77 @@ for (const file of SPEC.substitutions.class.files) {
   }
 }
 
+/* agentSetup - what `npm create abap2ui5-app -- --agent-setup` adds to a
+ * project that did not start here - is a SUBSET of files.shared, and the same
+ * kind of claim: only this repository can check it, and the create package
+ * acts on it in somebody else's repository. So: every file it names is a
+ * shared one; every shared file is either in it or left out WITH a reason (a
+ * file added to files.shared has to be decided about here too); the edits it
+ * makes for another source folder find their text; and the set is closed
+ * under what it invokes, like files.shared above - a package.json script it
+ * merges in may only run a script it hands out. */
+const setup = SPEC.agentSetup;
+if (!setup?.files) {
+  problems.push('template.json has no agentSetup.files - `npm create abap2ui5-app -- --agent-setup` reads it');
+} else {
+  const setupFiles = Object.keys(setup.files);
+  const leftOut = Object.keys(setup.leftOut || {});
+  for (const file of setupFiles) {
+    if (!sharedSet.has(file)) {
+      problems.push(`agentSetup.files names "${file}", which is not in files.shared - `
+        + (named.includes(file) ? 'a named file carries the project\'s own name, and an existing project has its own' : 'it would be handed to an existing project and to no new one'));
+    }
+    if (leftOut.includes(file)) problems.push(`agentSetup names "${file}" both in files and in leftOut`);
+  }
+  for (const file of leftOut) {
+    if (!sharedSet.has(file)) problems.push(`agentSetup.leftOut names "${file}", which is not in files.shared - there is nothing to leave out`);
+  }
+  for (const file of shared) {
+    if (!setupFiles.includes(file) && !leftOut.includes(file)) {
+      problems.push(`"${file}" is in files.shared but agentSetup neither takes it nor leaves it out - `
+        + 'decide whether an existing project gets it too: agentSetup.files, or agentSetup.leftOut with the reason');
+    }
+  }
+  for (const [file, how] of Object.entries(setup.merge || {})) {
+    if (!setupFiles.includes(file)) problems.push(`agentSetup.merge names "${file}", which agentSetup.files does not take`);
+    if (!['json', 'lines'].includes(how.how)) problems.push(`agentSetup.merge.${file}.how is "${how.how}" - the create package knows json and lines`);
+    if (how.how === 'json') {
+      const tpl = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'));
+      for (const key of how.keys || []) {
+        if (!tpl[key] || typeof tpl[key] !== 'object') problems.push(`agentSetup.merge.${file} merges "${key}", which ${file} does not have`);
+      }
+    }
+  }
+  const folder = setup.sourceFolder;
+  for (const edit of folder?.edits || []) {
+    if (!setupFiles.includes(edit.file)) problems.push(`agentSetup.sourceFolder edits "${edit.file}", which agentSetup.files does not take`);
+    if (!edit.text.includes(folder.placeholder)) problems.push(`agentSetup.sourceFolder's edit for "${edit.file}" does not contain "${folder.placeholder}" - it would change nothing`);
+    if (has(edit.file) && !fs.readFileSync(path.join(ROOT, edit.file), 'utf8').includes(edit.text)) {
+      problems.push(`agentSetup.sourceFolder looks for ${JSON.stringify(edit.text)} in "${edit.file}", which is not there - `
+        + 'a project with another STARTING_FOLDER would get gates pointed at a src/ it does not have');
+    }
+  }
+  for (const file of Object.keys(setup.existingVariants?.files || {})) {
+    if (!setupFiles.includes(file)) problems.push(`agentSetup.existingVariants names "${file}", which agentSetup.files does not take`);
+  }
+  const setupSet = new Set(setupFiles);
+  if (setupSet.has('package.json')) {
+    for (const [name, body] of Object.entries(npmScripts)) {
+      for (const [, target] of body.matchAll(/node\s+(scripts\/[\w./-]+)/g)) {
+        if (!setupSet.has(target)) {
+          problems.push(`agentSetup merges package.json's "${name}" (node ${target}), and does not take ${target} - `
+            + 'an existing project would get the script without the file');
+        }
+      }
+    }
+  }
+  for (const f of setupFiles.filter((x) => x.endsWith('.yml'))) {
+    if (!setupSet.has('package.json') && /run:\s*npm run /.test(fs.readFileSync(path.join(ROOT, f), 'utf8'))) {
+      problems.push(`agentSetup takes "${f}", which runs npm scripts, and not package.json, which defines them`);
+    }
+  }
+}
+
 /* One more claim this repository makes about itself, and the only one with an
  * expiry date. `@abap2ui5/linter` and its render runtime are cut from one tag
  * and the render gate wants the same minor line. The runtime is

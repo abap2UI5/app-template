@@ -183,7 +183,7 @@ export function checkActionPin(actionVersion, devRange) {
  *  for abapGit through WITH_UNIT_TESTS. */
 export function checkSidecar({ abap, xml, hasTests }) {
   const base = path.basename(abap, '.clas.abap');
-  const xmlName = `src/${base}.clas.xml`;
+  const xmlName = path.posix.join(path.posix.dirname(abap), `${base}.clas.xml`);
   if (!xml) return fail(`${abap}: no ${xmlName} sidecar - abapGit cannot import the class`, `copy an existing .clas.xml, set <CLSNAME>${base.toUpperCase()}</CLSNAME>`);
   const defects = [];
   if (!(xml[0] === 0xef && xml[1] === 0xbb && xml[2] === 0xbf)) defects.push('no UTF-8 BOM');
@@ -200,6 +200,17 @@ export function checkSidecar({ abap, xml, hasTests }) {
       'add the element after <UNICODE>X</UNICODE>, the way abapGit serializes a class with local test classes');
   }
   return ok(`${xmlName}: BOM, LF, CLSNAME ${clsname}${hasTests ? ', WITH_UNIT_TESTS' : ''}`);
+}
+
+/** Where the classes are: abapGit's STARTING_FOLDER, `src` when there is no
+ *  .abapgit.xml or it names none. A project made from the template keeps them
+ *  in src/; one that took only the agent setup (`npm create abap2ui5-app --
+ *  --agent-setup`) keeps them wherever its .abapgit.xml says, and a doctor
+ *  looking in src/ would check none of its sidecars and warn that there are no classes. */
+export function sourceFolder(abapgitXml) {
+  const m = /<STARTING_FOLDER>([^<]*)<\/STARTING_FOLDER>/.exec(abapgitXml ?? '');
+  if (!m) return 'src';
+  return m[1].trim().replace(/^\/+|\/+$/g, '') || '.';
 }
 
 /** `exists` answers whether a configured path is there. */
@@ -332,14 +343,15 @@ async function main() {
   const action = /uses:\s*abap2UI5\/linter@(?:[0-9a-f]{40}\s*#\s*v?(\d+\.\d+\.\d+)|v?(\d+\.\d+\.\d+)\b)/.exec(workflow);
   results.push(checkActionPin(action ? (action[1] || action[2]) : null, pkg.devDependencies?.['@abap2ui5/linter']));
 
-  const srcDir = path.join(ROOT, 'src');
+  const folder = sourceFolder(readIf('.abapgit.xml'));
+  const srcDir = path.join(ROOT, folder);
   const classes = fs.existsSync(srcDir) ? fs.readdirSync(srcDir).filter((f) => f.endsWith('.clas.abap')).sort() : [];
-  if (!classes.length) results.push(warn('src/ holds no *.clas.abap', 'every app is one ZCL_* class in src/ with its .clas.xml sidecar - the template ships one starter class there'));
+  if (!classes.length) results.push(warn(`${folder}/ holds no *.clas.abap`, `every app is one ZCL_* class in ${folder}/ (.abapgit.xml's STARTING_FOLDER) with its .clas.xml sidecar - the template ships one starter class there`));
   for (const abap of classes) {
     const base = abap.slice(0, -'.clas.abap'.length);
     const xmlPath = path.join(srcDir, `${base}.clas.xml`);
     results.push(checkSidecar({
-      abap: `src/${abap}`,
+      abap: path.posix.join(folder, abap),
       xml: fs.existsSync(xmlPath) ? fs.readFileSync(xmlPath) : null,
       hasTests: fs.existsSync(path.join(srcDir, `${base}.clas.testclasses.abap`)),
     }));

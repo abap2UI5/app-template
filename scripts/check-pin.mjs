@@ -59,11 +59,18 @@ const versionOf = (tag) => tag.replace(/-\w+$/, '');
 
 /** Where the release number is written, and how to find it in each file.
  *
- * `optional` marks a place that exists in the TEMPLATE and legitimately does
- * not exist in a project made from it. This file ships, so it runs in both:
- * a project writes its own README (template.json excludes ours), and failing
- * there would hand every new project a red gate on its first push. A file that
- * IS present still has to agree - only its absence is forgiven. */
+ * `optional` marks a place that is the TEMPLATE's prose and legitimately is
+ * not in a project: absent, or present WITHOUT the sentence, the place is
+ * skipped and the run says so. This file ships, so it runs in both. A project
+ * writes its own README (template.json excludes ours), and rewrites the first
+ * section of AGENTS.md for itself - or never had ours: a project that took
+ * only the agent setup (`npm create abap2ui5-app -- --agent-setup`) keeps its
+ * own AGENTS.md and README. Failing there handed such a project a red gate on
+ * its first push for prose it never had. A file that DOES name a release still
+ * has to agree with the pin. abaplint.jsonc is the pin itself and stays
+ * required; that the template's own README and AGENTS.md still carry the
+ * sentence is the template's unit tests' job (scripts/test/scripts.test.mjs),
+ * so a reshaped sentence there does not pass silently. */
 export const SITES = [
   {
     file: 'abaplint.jsonc',
@@ -80,15 +87,18 @@ export const SITES = [
     file: 'AGENTS.md',
     what: 'the pin named in the repository table',
     re: /pinned to release tag `(\d+\.\d+\.\d+)`/,
+    optional: true,
   },
 ];
 
 /** The offline half: every place the release is written, read from `root`.
- *  Returns what was found, the distinct versions, and the problems - a missing
- *  required file, a pattern that no longer matches, places that disagree. */
+ *  Returns what was found, the optional places skipped, the distinct versions,
+ *  and the problems - a missing required file, a required pattern that no
+ *  longer matches, places that disagree. */
 export function readPinSites(root = ROOT) {
   const problems = [];
   const found = [];
+  const skipped = [];
 
   for (const site of SITES) {
     const full = path.join(root, site.file);
@@ -98,6 +108,10 @@ export function readPinSites(root = ROOT) {
       continue;
     }
     const m = site.re.exec(fs.readFileSync(full, 'utf8'));
+    if (!m && site.optional) {
+      skipped.push(site);
+      continue;
+    }
     if (!m) {
       problems.push(
         `${site.file}: no release number found where ${site.what} should be\n`
@@ -120,11 +134,11 @@ export function readPinSites(root = ROOT) {
       + found.map((f) => `      ${f.version}  ${f.file} (${f.what})`).join('\n'),
     );
   }
-  return { found, distinct, problems };
+  return { found, skipped, distinct, problems };
 }
 
 async function main() {
-  const { found, distinct, problems } = readPinSites(ROOT);
+  const { found, skipped, distinct, problems } = readPinSites(ROOT);
 
   /* The half that needs the network. */
   let latest = null;
@@ -142,6 +156,7 @@ async function main() {
 
   console.log(`check-pin: ${found.length} place(s) name the framework release`);
   for (const f of found) console.log(`  ${f.version}  ${f.file} - ${f.what}`);
+  for (const f of skipped) console.log(`  -        ${f.file} - names no release (this project's own prose), skipped`);
 
   if (!latest) {
     console.log(

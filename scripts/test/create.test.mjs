@@ -106,7 +106,7 @@ test('create: refuses a class name the template refuses, and a directory that is
 
 test('create: the command line', () => {
   assert.deepEqual(parseArgs(['my-app', '--class', 'zcl_x', '--package', 'X', '--repo', 'r', '--from', '.']),
-    { dir: 'my-app', class: 'zcl_x', package: 'X', repo: 'r', from: '.', help: false });
+    { dir: 'my-app', class: 'zcl_x', package: 'X', repo: 'r', from: '.', agentSetup: false, help: false });
   assert.throws(() => parseArgs(['--bogus', 'x']), /unknown option/);
   assert.throws(() => parseArgs(['a', 'b']), /unexpected argument/);
   assert.throws(() => parseArgs(['a', '--class']), /needs a value/);
@@ -119,9 +119,16 @@ test('create: the package is self-contained and ships what index.mjs imports', (
   assert.deepEqual(pkg.bin, { 'create-abap2ui5-app': 'index.mjs' });
   assert.equal(pkg.dependencies, undefined, 'no dependencies - fetch, fs and path are all it needs');
   assert.ok(pkg.files.includes('index.mjs') && pkg.files.includes('substitute.mjs'));
-  const src = fs.readFileSync(CREATE, 'utf8');
-  for (const [, dep] of src.matchAll(/from '(\.[^']+)'/g)) {
-    assert.ok(pkg.files.includes(dep.replace(/^\.\//, '')), `index.mjs imports ${dep}, which package.json's files does not ship`);
+  // every module it ships imports only modules it ships - index.mjs and the
+  // ones it pulls in (agent-setup.mjs) alike
+  for (const file of pkg.files.filter((f) => f.endsWith('.mjs'))) {
+    const src = fs.readFileSync(path.join(ROOT, 'create', file), 'utf8');
+    for (const [, dep] of src.matchAll(/from '(\.[^']+)'/g)) {
+      assert.ok(pkg.files.includes(dep.replace(/^\.\//, '')), `${file} imports ${dep}, which package.json's files does not ship`);
+    }
+    for (const [, dep] of src.matchAll(/from '([^.'][^']*)'/g)) {
+      assert.match(dep, /^node:/, `${file} imports ${dep} - the package has no dependencies, only node: built-ins`);
+    }
   }
   // the copy is the library, byte for byte - what sync-create --check enforces
   assert.ok(fs.readFileSync(path.join(ROOT, 'create/substitute.mjs')).equals(fs.readFileSync(path.join(ROOT, 'scripts/lib/substitute.mjs'))),

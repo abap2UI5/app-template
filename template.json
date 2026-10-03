@@ -84,5 +84,78 @@
         "jsonKey": "name"
       }
     ]
+  },
+  "agentSetup": {
+    "note": "What `npm create abap2ui5-app@latest -- --agent-setup [dir]` adds to a project that did NOT start from this template - most abap2UI5 projects. A subset of files.shared: the agent setup (AGENTS.md, the skills, the MCP server, the permission allowlist), the two gates it tells the agent to run, and the CI job that runs them. Never files.named: an existing project has its own src/, .abapgit.xml and package. A file the project already has is skipped and named, never overwritten - except the two under `merge`, which only ever ADD what is missing. Only the create package executes this key; rename.mjs, scaffold_app and the VS Code extension write whole projects from files.shared and files.named and do not read it. scripts/check-template.mjs holds it to files.shared: every shared file is either here or in leftOut, with its reason.",
+    "files": {
+      "AGENTS.md": "the app-building reference an agent reads before writing an app class - the reason for the whole setup. Its first section describes a project made from this template, and the create package says so after writing it",
+      "CLAUDE.md": "points Claude Code at AGENTS.md; other agents read AGENTS.md directly",
+      ".claude/settings.json": "the permission allowlist, so an agent runs the gates (`npm run check`, `npm run fix`, ...) without a prompt for each",
+      ".claude/skills/build-an-app/SKILL.md": "the checklist for writing an app class, loaded on demand",
+      ".claude/skills/view-chain-layout/SKILL.md": "the layout rules for a builder chain and the linter rule that checks them",
+      ".claude/skills/abap-check/SKILL.md": "the ABAP a green CI does not catch - abapGit round trip, activation, runtime",
+      ".claude/skills/ui5-check/SKILL.md": "the UI5 a green CI does not catch - names the oldest supported release does not have",
+      ".mcp.json": "registers the abap2UI5 MCP server for Claude Code - sample search, view validation, headless run",
+      "abaplint.jsonc": "the first gate, with the framework pinned for dependency resolution; its source glob follows the project's STARTING_FOLDER (sourceFolder below)",
+      "abap2ui5lint.jsonc": "the second gate - every view checked statically and rendered headless; its paths follow the project's STARTING_FOLDER",
+      "package.json": "MERGED, never replaced (see merge): the gates as devDependencies and the `npm run check*` scripts AGENTS.md and the allowlist name. Written from the template's when the project has none",
+      ".nvmrc": "the Node line the gates need - package.json's engines say >=22, check.yml runs 22, the doctor reads this file",
+      ".gitignore": "MERGED, never replaced (see merge): node_modules/ and .playwright/, or the gates' install lands in the next commit",
+      ".github/workflows/check.yml": "runs the two gates and the ABAP Unit job on every pull request - what makes an agent's green local run mean what CI's means; the unit job's paths follow the project's STARTING_FOLDER",
+      "scripts/check-pin.mjs": "check.yml's first step (`npm run check:pin`) runs it - this set is closed under what it invokes, like files.shared",
+      "scripts/doctor.mjs": "`npm run doctor`, where AGENTS.md sends an agent when a gate fails with a symptom instead of a cause; it imports check-pin.mjs"
+    },
+    "leftOut": {
+      "package-lock.json": "locks the TEMPLATE's package.json, which a merged one is not; `npm install` writes the right lockfile - commit it, check.yml runs `npm ci`",
+      ".gitattributes": "normalises line endings for the whole repository; in an existing one that rewrites files its history holds in another form - a decision about the repository, not part of an agent setup",
+      ".github/dependabot.yml": "the update policy for every npm package and action of the whole repository, which an existing project has already decided (its own file, Renovate, or none); check.yml's SHA pins work without it",
+      ".devcontainer/devcontainer.json": "an editor environment, not agent or gate setup - and a project with a container has its own",
+      ".vscode/extensions.json": "editor recommendations, not agent or gate setup - and a project with a .vscode/ has its own"
+    },
+    "merge": {
+      "package.json": {
+        "how": "json",
+        "keys": [
+          "scripts",
+          "devDependencies",
+          "engines"
+        ],
+        "why": "each entry under these keys is added when the project lacks it and left alone when it has it, whatever its value - a project's own `check` script or abaplint version is its decision, and the create package names every one it kept. A devDependency the project lists under dependencies counts as present"
+      },
+      ".gitignore": {
+        "how": "lines",
+        "why": "the template's patterns the project does not ignore yet are appended, each with the comment above it; nothing is reordered or removed"
+      }
+    },
+    "sourceFolder": {
+      "why": "the template keeps its classes in src/, and four of these files say so. An existing project's .abapgit.xml says where it keeps them (STARTING_FOLDER), and a gate pointed at a src/ that is not there checks nothing - and passes. Each edit replaces `placeholder` inside the FIRST occurrence of `text`: the first `\"files\"` in abaplint.jsonc is global.files, the second is the framework dependency's own folder and stays",
+      "placeholder": "src",
+      "edits": [
+        {
+          "file": "abaplint.jsonc",
+          "text": "\"files\": \"/src/**/*.*\""
+        },
+        {
+          "file": "abap2ui5lint.jsonc",
+          "text": "\"paths\": [\"src\"]"
+        },
+        {
+          "file": ".github/workflows/check.yml",
+          "text": "paths: src"
+        },
+        {
+          "file": "package.json",
+          "text": "abap2ui5-unit src"
+        }
+      ]
+    },
+    "existingVariants": {
+      "why": "abaplint also reads abaplint.json, and many abapGit projects have one. The template's abaplint.jsonc is still added - `npm run check:abap` and the pin check read that one - and the create package says the project now has both",
+      "files": {
+        "abaplint.jsonc": [
+          "abaplint.json"
+        ]
+      }
+    }
   }
 }
