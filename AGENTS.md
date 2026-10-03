@@ -134,7 +134,10 @@ needs a newer one). They are mirrored from
 by the template's generator, with a declared handful of sentences reworded
 (`npm run fmt:chains` is `npm run fix` here, the guide is this file). Where a
 skill says "this repository" or names a `.github/scripts/` gate, it means the
-framework's. Fix them upstream; a regeneration overwrites the copies.
+framework's. Fix them upstream; a regeneration overwrites the copies (the
+template regenerates both mirrors daily and opens a pull request when
+abap2UI5 changed them; a project made from it takes newer text by copying
+the files from the template's `main`).
 
 Starting a project without this repository's own scaffolding: `npm create
 abap2ui5-app@latest my-app -- --class zcl_my_app` writes the same files from
@@ -153,7 +156,8 @@ writing or changing any app class.
 > [abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5) — the copy exists
 > so this repo needs no framework checkout. It is **generated**, in
 > [abap2UI5/app-template](https://github.com/abap2UI5/app-template), from the
-> guide plus a declared list of deviations. Fix it upstream (a CI gate there
+> guide plus a declared list of deviations, and carried there by a daily
+> pull request whenever the guide changes. Fix it upstream (a CI gate there
 > checks it against the real client API) rather than here. In your own project
 > you may of course extend this file with your app's own rules — put those
 > ABOVE this line, where a regeneration does not reach.
