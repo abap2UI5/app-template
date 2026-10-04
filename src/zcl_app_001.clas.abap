@@ -25,6 +25,10 @@ CLASS zcl_app_001 IMPLEMENTATION.
   METHOD z2ui5_if_app~main.
 
     me->client = client.
+    " ONE IF/ELSEIF chain, so exactly one arm runs per roundtrip: on the first
+    " start check_on_navigated( ) is true as well, but this arm wins, so it
+    " seeds AND displays. Never split the chain into separate IF blocks - the
+    " linter reports that as separate-lifecycle-ifs
     IF client->check_on_init( ).
       model_init( ).
       view_display( ).
