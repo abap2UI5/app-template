@@ -39,8 +39,15 @@ jobs:
 
       # Dependency-free by design, like the three gates check.yml runs before
       # `npm ci` — see that workflow's header.
+      #
+      # `shell: bash` is load-bearing: it runs the step with `-o pipefail`.
+      # The default shell does not, so `| tee` handed back tee's exit code
+      # and a stale pin passed as green - every weekly run since 1.146.0
+      # printed the problem and still succeeded, and the issue step below
+      # never ran. `2>&1` puts the problem lines (stderr) into pin.txt too.
       - name: Is the pinned release still the newest one
-        run: node scripts/check-pin.mjs --strict | tee pin.txt
+        shell: bash
+        run: node scripts/check-pin.mjs --strict 2>&1 | tee pin.txt
 
       - name: Open or update the stale-pin issue
         if: failure()
