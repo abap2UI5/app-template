@@ -107,10 +107,11 @@ the runner names the missing one.
 
 Run them on the system with ABAP Unit (ADT `Ctrl+Shift+F10`, or SE24) - or
 **without a system**: `npm run test:unit` (the mcp-server's `abap2ui5-unit`)
-clones the framework at the release `abaplint.jsonc` pins, gets its transpiled
-backend (the release asset, or one build of a few minutes, cached under
-`~/.abap2ui5-mcp`), transpiles the classes under `src/` with their test
-includes into it and runs the tests through the open-abap runtime. The `unit`
+installs the framework at the release `abaplint.jsonc` pins from the npm
+package `@abap2ui5/node-runtime` (cached under `~/.abap2ui5-mcp`; a pin older
+than 1.145.0 clones the release and builds its backend instead), transpiles
+the classes under `src/` with their test includes into it and runs the tests
+through the open-abap runtime. The `unit`
 job in `check.yml` does the same on every pull request through the
 `abap2UI5/mcp-server` action, with the step summary naming every test method
 and the first failure. What the runtime cannot model (the abap-check skill
