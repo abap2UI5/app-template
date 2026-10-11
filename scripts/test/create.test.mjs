@@ -12,8 +12,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { parseArgs, targetProblem } from '../../create/index.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { invokedAsCommand, parseArgs, targetProblem } from '../../create/index.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, 'template.json'), 'utf8'));
@@ -102,6 +102,28 @@ test('create: refuses a class name the template refuses, and a directory that is
   assert.equal(run([CREATE, '--class', 'zcl_ok']).code, 2, 'no directory is a usage error');
   assert.equal(targetProblem(busy) !== null, true);
   assert.equal(targetProblem(path.join(base, 'not-yet')), null);
+});
+
+/* `npm create` / `npm exec` run the package through its node_modules/.bin
+ * link, so the script sees the LINK as process.argv[1]. The main-module check
+ * compared that with import.meta.url as it came, never matched, and the
+ * command printed nothing and exited 0 - no project, no usage, no error. */
+test('create: runs when started through a bin link, as npm create starts it', { skip: process.platform === 'win32' }, (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'a2ui5-create-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const bin = path.join(base, 'node_modules', '.bin');
+  fs.mkdirSync(bin, { recursive: true });
+  const link = path.join(bin, 'create-abap2ui5-app');
+  fs.symlinkSync(CREATE, link);
+  const usage = run([link]);
+  assert.equal(usage.code, 2, 'no directory is a usage error - it exited 0 having done nothing');
+  assert.match(usage.out, /usage: npm create abap2ui5-app/);
+  const made = run([link, path.join(base, 'my app'), '--class', 'zcl_linked_app', '--from', ROOT]);
+  assert.equal(made.code, 0, made.out);
+  assert.ok(fs.existsSync(path.join(base, 'my app', 'src', 'zcl_linked_app.clas.abap')), made.out);
+  assert.equal(invokedAsCommand(link, pathToFileURL(CREATE).href), true);
+  assert.equal(invokedAsCommand(path.join(base, 'elsewhere.mjs'), pathToFileURL(CREATE).href), false);
+  assert.equal(invokedAsCommand(undefined, pathToFileURL(CREATE).href), false);
 });
 
 test('create: the command line', () => {
