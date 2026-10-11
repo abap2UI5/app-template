@@ -189,6 +189,32 @@ test('agent-setup: a second run changes nothing and says so', (t) => {
   for (const [rel, bytes] of first) assert.ok(second.get(rel).equals(bytes), `${rel} changed on the second run`);
 });
 
+test('agent-setup: a symbolic link in the project is never written through', (t) => {
+  const dir = tmp(t);
+  const away = tmp(t);
+  abapgitProject(dir);
+  // a package.json linked to a file elsewhere: merged THERE before
+  write(away, 'package.json', '{\n  "name": "elsewhere"\n}\n');
+  fs.symlinkSync(path.join(away, 'package.json'), path.join(dir, 'package.json'));
+  // a dangling link read as "missing": the write created its target
+  fs.symlinkSync(path.join(away, 'agents-written-here.md'), path.join(dir, 'AGENTS.md'));
+  // a folder that leads out of the project
+  fs.mkdirSync(path.join(away, 'gh'));
+  fs.symlinkSync(path.join(away, 'gh'), path.join(dir, '.github'), 'dir');
+
+  const r = setup(dir);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(read(away, 'package.json'), '{\n  "name": "elsewhere"\n}\n', 'the linked package.json was changed');
+  assert.ok(!fs.existsSync(path.join(away, 'agents-written-here.md')), 'the dangling link was written through');
+  assert.deepEqual(fs.readdirSync(path.join(away, 'gh')), [], 'a file was written through the linked folder');
+  assert.match(r.out, /skipped\s+package\.json\s+a symbolic link - left as it is/);
+  assert.match(r.out, /skipped\s+AGENTS\.md\s+a symbolic link - left as it is/);
+  assert.match(r.out, /skipped\s+\.github\/workflows\/check\.yml\s+its folder leads outside the project/);
+  assert.match(r.out, /package\.json is a symbolic link - not merged/);
+  // the rest of the setup is written as usual
+  assert.ok(fs.existsSync(path.join(dir, 'CLAUDE.md')));
+});
+
 test('agent-setup: refuses what it cannot do, and writes nothing then', (t) => {
   const base = tmp(t);
   const r1 = run([CREATE, '--agent-setup', path.join(base, 'not-there'), '--from', ROOT]);
