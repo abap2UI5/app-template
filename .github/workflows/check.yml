@@ -62,7 +62,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: 'npm'
@@ -101,7 +101,7 @@ jobs:
       # build/screenshots` (photographs every checked view, for an
       # upload-artifact step to publish - it runs even when the check failed).
       - name: abap2UI5-linter (property gate + headless render)
-        uses: abap2UI5/linter@86e7b451be1f05f9f74d5ada6f14d9895999446d # v0.8.2
+        uses: abap2UI5/linter@41e3fbde14281181d81a121f629eb96164deb961 # v0.8.5
 
       # The same report as markdown on the run's own page - property gate only,
       # since the step above already decided whether the views load. This one
