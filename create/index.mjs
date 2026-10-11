@@ -209,7 +209,13 @@ async function agentSetup(args) {
     console.error(`create-abap2ui5-app: ${err.message} - nothing was written`);
     return 1;
   }
-  writePlan(dir, plan.actions);
+  try {
+    writePlan(dir, plan.actions);
+  } catch (err) {
+    console.error(`create-abap2ui5-app: writing into ${dir} failed: ${err.message} - files before it may have been written; `
+      + 'run it again once the cause is fixed (it never overwrites, so a second run only completes the first)');
+    return 1;
+  }
 
   const width = Math.max(...plan.actions.map((a) => a.path.length));
   const verb = { add: 'added', merge: 'merged', skip: 'skipped' };
