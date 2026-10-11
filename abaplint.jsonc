@@ -75,6 +75,13 @@
     // genuine defect class - 35 unchecked sy-subrc, 28 unused variables, 16
     // SELECT without ORDER BY, 14 empty structures. No category of noise. On
     // this template: zero.
+    //
+    // Re-read 2026-10-11 against abap2UI5's 162 rules: of the ten it gained
+    // since, xml_bom was already here; clear_exporting_parameters,
+    // preferred_parameter_ignored, redundant_conversion and
+    // wrong_abapdoc_position joined the core below; the other five
+    // (else_after_all_returns, prefer_abap_bool, prefer_abap_bool_values,
+    // unnecessary_loop_guard, use_message_class) are taste and stay out.
 
     // Correctness - a defect, not a preference
     "ambiguous_statement": true,
@@ -82,6 +89,7 @@
     "check_abstract": true,
     "check_subrc": true,
     "classic_exceptions_overlap": true,
+    "clear_exporting_parameters": true,
     "cyclic_oo": true,
     "dangerous_statement": true,
     "empty_statement": true,
@@ -126,6 +134,8 @@
     // Dead weight - shipped, serialized, read by nobody
     "empty_event": true,
     "empty_structure": true,
+    "preferred_parameter_ignored": true,
+    "redundant_conversion": true,
     "superfluous_value": true,
     "unnecessary_chaining": true,
     "unnecessary_pragma": true,
@@ -133,6 +143,7 @@
     "unused_methods": true,
     "unused_types": true,
     "unused_variables": true,
+    "wrong_abapdoc_position": true,
 
     // The abapGit round trip - the file has to come back byte-identical
     "colon_missing_space": true,
