@@ -112,12 +112,13 @@ jobs:
         run: npx abap2ui5lint --no-render --advisory --no-progress --format markdown >> "$GITHUB_STEP_SUMMARY"
 
   # The ABAP Unit tests of the app classes, without a SAP system: the
-  # mcp-server's runner clones the framework at the release abaplint.jsonc pins
-  # (the same pin the job above lints against), downloads that release's
-  # transpiled backend - or builds it once, a few minutes - transpiles every
-  # class under src/ with its *.clas.testclasses.abap into it and runs the
-  # tests through the open-abap runtime. The framework clone and its backend
-  # are cached per pin, so a run after the first is seconds. The step summary
+  # mcp-server's runner installs the framework at the release abaplint.jsonc
+  # pins (the same pin the job above lints against) from the npm package
+  # @abap2ui5/node-runtime - no framework clone; a pin older than 1.145.0, the
+  # first release with that package, takes the old clone-and-backend path -
+  # transpiles every class under src/ with its *.clas.testclasses.abap into it
+  # and runs the tests through the open-abap runtime. The install is cached per
+  # pin, so a run after the first pays only the transpile. The step summary
   # names every test method and the first failure.
   #
   # A separate job on purpose: it needs neither the gates' npm install nor a
@@ -129,13 +130,14 @@ jobs:
   # `npm run test:unit`.
   #
   # Pinned to a commit like the other actions, and moved by dependabot the same
-  # way; `abap2UI5/mcp-server@v0` is the always-current form.
+  # way; `abap2UI5/mcp-server@v1` is the always-current form (the floating
+  # major tag mcp-server's release moves to every 1.x; `@v0` stays at 0.3.0).
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: abap2UI5 unit tests (transpiled backend, no system)
-        uses: abap2UI5/mcp-server@dd110765115bb47836b646775c8ccafaa1deeadd # v0
+        uses: abap2UI5/mcp-server@edc42df13b3bc49ca53df331bf55c44c5ab38e70 # v1.0.0
         with:
           paths: src
