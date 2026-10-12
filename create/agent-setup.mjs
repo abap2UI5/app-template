@@ -156,6 +156,30 @@ export function sourceFolderOf(dir, placeholder) {
   return { folder, from: '.abapgit.xml STARTING_FOLDER' };
 }
 
+const lexists = (p) => {
+  try {
+    fs.lstatSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Does writing `rel` stay inside `dir` - the nearest existing ancestor of
+ *  the target, symbolic links resolved, still under the project? A
+ *  repository can ship `.github -> /somewhere/else`, and the workflow
+ *  written into it would land there. */
+function staysInside(dir, rel) {
+  const root = fs.realpathSync(dir);
+  let at = path.dirname(path.join(dir, rel));
+  while (!fs.existsSync(at)) {
+    if (lexists(at)) return false; // a dangling link: writing through it creates its target, wherever that is
+    at = path.dirname(at);
+  }
+  const real = fs.realpathSync(at);
+  return real === root || real.startsWith(root.endsWith(path.sep) ? root : root + path.sep);
+}
+
 /**
  * The whole agent setup for `dir`, decided and not written: one action per
  * file - `add` (bytes to write), `merge` (bytes to write over the project's,
@@ -179,8 +203,22 @@ export async function planAgentSetup(spec, read, dir) {
   const actions = [];
   for (const rel of Object.keys(setup.files)) {
     const target = path.join(dir, rel);
-    const exists = fs.existsSync(target);
     const merge = setup.merge?.[rel];
+    /* A link is never written through - neither the file (a dangling one
+     * read as "missing" and the write created its target wherever it
+     * pointed; a package.json linked elsewhere was merged THERE) nor a
+     * folder on its way out of the project. */
+    if (lexists(target) && fs.lstatSync(target).isSymbolicLink()) {
+      actions.push({ path: rel, kind: 'skip', detail: 'a symbolic link - left as it is' });
+      if (merge) warnings.push(`${rel} is a symbolic link - not merged; add the template's ${merge.how === 'json' ? 'entries' : 'patterns'} by hand`);
+      continue;
+    }
+    if (!staysInside(dir, rel)) {
+      actions.push({ path: rel, kind: 'skip', detail: 'its folder leads outside the project through a symbolic link - left alone' });
+      warnings.push(`${rel} was not written: a folder on its way is a symbolic link out of the project`);
+      continue;
+    }
+    const exists = fs.existsSync(target);
     if (exists && !merge) {
       actions.push({ path: rel, kind: 'skip', detail: 'already there - left as it is' });
       continue;
@@ -245,12 +283,28 @@ export async function planAgentSetup(spec, read, dir) {
   return { folder, from, actions, warnings };
 }
 
-/** Writes the plan's `add` and `merge` actions. */
+/** Writes the plan's `add` and `merge` actions - opened with O_NOFOLLOW, so
+ *  a link put in place since the plan looked fails the write instead of
+ *  redirecting it (Windows has no O_NOFOLLOW: an lstat check stands in). */
 export function writePlan(dir, actions) {
+  const nofollow = fs.constants.O_NOFOLLOW;
   for (const a of actions) {
     if (a.kind === 'skip') continue;
-    fs.mkdirSync(path.join(dir, path.dirname(a.path)), { recursive: true });
-    fs.writeFileSync(path.join(dir, a.path), a.bytes);
+    const at = path.join(dir, a.path);
+    fs.mkdirSync(path.dirname(at), { recursive: true });
+    if (!nofollow && lexists(at) && fs.lstatSync(at).isSymbolicLink()) throw new Error(`refusing to write ${a.path} - it is a symbolic link`);
+    let fd;
+    try {
+      fd = fs.openSync(at, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC | (nofollow || 0), 0o666);
+    } catch (e) {
+      if (e && e.code === 'ELOOP') throw new Error(`refusing to write ${a.path} - it is a symbolic link`);
+      throw e;
+    }
+    try {
+      fs.writeFileSync(fd, a.bytes);
+    } finally {
+      fs.closeSync(fd);
+    }
   }
 }
 

@@ -138,9 +138,9 @@ the autofix config, where its quick fix inserts the BOM rather than reporting
 it. Trailing whitespace is **abaplint — `whitespace_end`**, per repository and
 not everywhere; see below. Everything else in the table is this repository's
 script and nothing else — and a consumer repository that has not turned
-`xml_bom` on can still ship a BOM-less sidecar with a green CI.
-
-**Backlog:** abaplint · abaplint-abap-final-newline
+`xml_bom` on can still ship a BOM-less sidecar with a green CI. The EOF
+newline is **abaplint — `final_newline`** (abaplint/abaplint#4412, merged
+2026-10-12) from the first release after 2.120.74.
 
 abapGit writes every file one specific way. Write it another way and it
 differs from what the system serializes back — permanently, on every pull, for
@@ -335,8 +335,8 @@ in the abap2UI5 linter (which keeps the abap2UI5-specific checks).
 This class of defect has now bitten three times, twice reported by users after
 a pull, and it is the single most likely thing to break a system that is not on
 the newest release. abaplint's default target accepts all of it; at `syntax.version`
-v750 or v702, `check_syntax` reports the first shape (below v756) and still
-accepts the other two (measured 2026-09-23 on 2.120.59).
+v750 or v702, `check_syntax` reports the first shape (below v756), and from
+2.120.72 on (abaplint/abaplint#4403, pinned here) the other two as well.
 
 - **A generic `REF TO data` cannot be dereferenced inline.** `lr_ref->*` in an
   expression, and `ASSIGN COMPONENT … OF STRUCTURE mr_data->*`, both fail with
@@ -355,8 +355,10 @@ accepts the other two (measured 2026-09-23 on 2.120.59).
   `ASSIGN val->(lv_name) TO …` where `val` is `TYPE any` is rejected on NW 7.52
   and 7.02 with *"VAL is not a reference variable"* (#2409). Cast once —
   `DATA(lx) = CAST cx_root( val ).` — and address `lx->(lv_name)`.
+  `check_syntax` reports it below v756 from 2.120.72 on.
 - **`CORRESPONDING #( <generic> )` is not available.** Same commit
-  (`a16e2465`): use `CLEAR` + `MOVE-CORRESPONDING`. abaplint's
+  (`a16e2465`): use `CLEAR` + `MOVE-CORRESPONDING`. `check_syntax` reports
+  a generic target below v756 from 2.120.72 on. abaplint's
   `prefer_corresponding` rule had to be switched off for the low-release config
   because it recommends the construct that does not compile there.
 
@@ -600,14 +602,15 @@ addon. The parameters are called `default_value` now.
   trips over. A structure component may carry these names: a
   `BEGIN OF … END OF` has no such additions.
 
-**Gate: open** until abaplint/abaplint#4391 ships: `check_syntax` then
-reports the cases of that table. Measured with that change, it finds exactly
+**Gate: abaplint — `check_syntax`**, from 2.120.74 on (abaplint/abaplint#4391,
+pinned here since 2026-10-11): it reports the cases of that table, *"Parameter
+"default" is read as the DEFAULT addition of the parameter before it, rename it
+or escape it as !default"*. Measured with that change, it finds exactly
 the cockpit's `to_int` and nothing in abap2UI5, the addons or open-abap-core;
 on the agent runtime before its fix exactly the three parameters the system
 named, and nothing after it (`bool( … row … OPTIONAL default … )` of
 `z2ui5_cl_agent_snapshot` stands after `OPTIONAL` and is accepted, by the
 system and by the rule).
-**Backlog:** abaplint · abaplint-parameter-named-default
 
 ### Do not depend on DDIC objects that are not everywhere
 
@@ -639,7 +642,7 @@ called on the wrong system.
 decide. The rest is **open** by construction: SLIN and ATC run in a system,
 and no gate outside one can stand in for them.
 
-**Backlog:** abaplint · abaplint-default-key-implicit, abaplint-abapdoc-html-tag, abaplint-get-reference-obsolete, abaplint-inline-packed-computation, abaplint-abapdoc-blank-line, abaplint-abapdoc-leading-at
+**Backlog:** abaplint · abaplint-default-key-implicit, abaplint-get-reference-obsolete
 
 Partly gated by `npm run check:atc`
 (`.github/scripts/extended-check-gate.mjs`). Prose was tried first and did not
@@ -751,14 +754,18 @@ and points here, so a new trap is added here and nowhere else.
     abap-cloud-gui (`z2ui5_cl_cgui_layout`, `z2ui5_cl_cgui_report`,
     `z2ui5_if_cgui_variant_store`, fixed in
     abap2UI5-addons/abap-cloud-gui#9). `check:atc` asserted the opposite
-    until that day; it reports the shape now. `wrong_abapdoc_position` does
-    not.
+    until that day; it reports the shape now. `wrong_abapdoc_position`
+    reports it, and a plain comment between block and declaration, from
+    the first release after 2.120.74 (abaplint/abaplint#4414, merged
+    2026-10-12).
   - **A `"!` line that begins with `@`** is read as a command:
     `"! @UI.presentationVariant's sortOrder …` is *"A command was expected
     after ABAP Doc symbol "@""*. Only `@parameter`, `@raising` and
     `@exception` may start a line. Break the line one word earlier, so the
     annotation sits mid-line, where it is plain text. Four sites in rap-ext,
-    fixed in abap2UI5-addons/rap-ext#19. Not gated.
+    fixed in abap2UI5-addons/rap-ext#19. Not gated here; abaplint reports
+    it as `abapdoc_leading_at` (abaplint/abaplint#4421, merged 2026-10-11)
+    from the first release after 2.120.74.
 
   And one the rule does decide, where the repository has it off: four blocks
   in front of a chained `TYPES:` in rap-ext (same PR). That is
@@ -773,7 +780,9 @@ and points here, so a new trap is added here and nowhere else.
   (2026-09-02) - so it is a gate now: `check:atc` (`abapdoc_html`) reads every
   `"!` line for a complete tag-like token outside the tags ABAP Doc knows
   (`p em strong ul ol li h1-h3 br`). A comparison `a < b` is not a token and
-  not a finding.
+  not a finding. abaplint has the same check as `abapdoc_html_tag`
+  (abaplint/abaplint#4422, merged 2026-10-11) from the first release after
+  2.120.74; `check:atc` keeps it until the pin catches up.
 
 - **`PREFERRED PARAMETER` is ignored unless every IMPORTING parameter is
   optional.** The addition names the parameter a short-form call `meth( x )`
@@ -833,15 +842,16 @@ and points here, so a new trap is added here and nowhere else.
   `abap2UI5/samples-controls` (2026-10-04, `z2ui5_cl_smpc_demo_002->row_json`,
   fixed in abap2UI5/samples-controls#251). An abaplint-based probe over
   abap2UI5, samples-controls and samples-stack found no other instance.
-  Neither abaplint nor any gate here reports it.
+  No gate here reports it.
 
   **Second case, with `*` and `/` (2026-10-06).** A user's pull of
   `abap2UI5-addons/admin-cockpit` reported the same warning for
   `z2ui5_cl_cockpit_stats->p95`: `DATA(lv_target) = lv_total * 95 / 100.`
   with `lv_total TYPE p LENGTH 16 DECIMALS 0`. So the length of the operand
   does not carry over either: a P(16,0) operand still gives P(8,0). Fixed by
-  declaring `lv_target` with the operand's type. abaplint 2.120.70 still
-  reports nothing.
+  declaring `lv_target` with the operand's type. abaplint reports both
+  shapes as `inline_packed_computation` (abaplint/abaplint#4413, merged
+  2026-10-12) from the first release after 2.120.74.
 - **`SORT` or `DELETE ADJACENT DUPLICATES` on a table with an empty key.**
   `SORT result.` and `DELETE ADJACENT DUPLICATES FROM result.` on a
   `STANDARD TABLE OF string WITH EMPTY KEY` give the warning *""RESULT" is a
@@ -853,9 +863,10 @@ and points here, so a new trap is added here and nowhere else.
   components you mean. Found by a user's pull of
   `abap2UI5-addons/admin-cockpit` (2026-10-06,
   `z2ui5_cl_cockpit_inst->get_implementers`). abaplint 2.120.70 reports
-  nothing. Not gated: the key is in the table's type, which can be a
-  returning parameter typed in another class.
-  **Backlog:** abaplint · abaplint-sort-empty-key
+  nothing. Not gated here: the key is in the table's type, which can be a
+  returning parameter typed in another class. abaplint reports it as
+  `sort_empty_key` (abaplint/abaplint#4419, merged 2026-10-11) from the
+  first release after 2.120.74.
 - **`DATA( )` from a generic parameter** (`DATA(lv) = val` with
   `val TYPE clike`) is "the fixed type STRING is used for the generic type
   CLIKE": the inline declaration has to pick a type, and SLIN objects to the
@@ -1075,7 +1086,7 @@ transpiled to JS (`npm run auto_transpile`), and is linted against
 `check:standard` and `check:cloud`. A construct can be valid ABAP and still
 break one of those four.
 
-**Backlog:** open-abap · runtime-rescale-not-implemented, runtime-replace-with-literal, runtime-packed-copy-precision
+**Backlog:** open-abap · runtime-rescale-not-implemented, runtime-packed-copy-precision
 
 - **Never put a 7.02 built-in function inside a table-expression key.** This is
   the sharpest case in this section, because all four checks were green and a
@@ -1147,9 +1158,9 @@ break one of those four.
   first** - `lr_tab = REF #( <tab> ).` with `lr_tab TYPE REF TO data`, then
   `bind( lr_tab )`; the downport turns that into a plain
   `GET REFERENCE OF <tab> INTO lr_tab`. A typed field symbol is fine - the
-  temporary copies its type. The downport itself still writes the `LIKE REF
-  TO` on 2.120.71 (reproduced 2026-10-09); abaplint/abaplint#4405 makes it
-  `TYPE REF TO data` for a generic source. **Gate:** `npm run downport` ends with
+  temporary copies its type. Up to 2.120.71 the downport itself wrote the `LIKE
+  REF TO`; from 2.120.72 on (abaplint/abaplint#4405, pinned here) it writes
+  `TYPE REF TO data` for a generic source, and the gate stays as a guard. **Gate:** `npm run downport` ends with
   `downport-fix.mjs check-generic-like`, which reads the OUTPUT (the only
   place the shape exists) and fails on any `DATA … LIKE [REF TO | LINE OF]`
   a field symbol the same method types generically; `test.yaml` runs it on
@@ -1181,8 +1192,8 @@ break one of those four.
   `CREATE DATA mr.` (or `CREATE DATA mr TYPE string.`) and assign through
   `mr->*`. Measured on abaplint 2.120.68 in an isolated project (`downport`,
   `check_syntax` and `parser_error` on, v702; still so on 2.120.71,
-  2026-10-09). abaplint/abaplint#4404 makes the downport write `CREATE DATA`
-  and the value through the reference. **Gate: this repo** -
+  2026-10-09). From 2.120.72 on (abaplint/abaplint#4404, pinned here) the
+  downport writes `CREATE DATA` and the value through the reference. **Gate: this repo** -
   `npm run downport` ends red, but read the next entry before trusting
   what it names.
 - **After a parser error, the downport stops for the whole file, and the
@@ -1267,7 +1278,8 @@ break one of those four.
   Found 2026-10-08 in abap2UI5-addons/admin-cockpit, whose field-path
   parsing found 1 of 3 business objects. Take the offset from
   `find( val = … sub = … occ = -1 )`, which the runtime does resolve, and cut
-  with `substring( )`. **Gate: open.**
+  with `substring( )`. Fixed in the runtime from 2.14.3 on
+  (abaplint/transpiler#1985, pinned here).
 - **`REPLACE ... OF ... WITH` reads its WITH text like a regex replacement in
   the runtime.** `REPLACE ALL OCCURRENCES OF '{' IN s WITH '\{'` leaves `{`
   under `npm run unit` (the backslash of `\{`, `\}`, `\$` is dropped), and
@@ -1277,7 +1289,8 @@ break one of those four.
   abap2UI5-addons/admin-cockpit, whose brace escaping for a UI5 attribute
   could not be tested - and a double escape broke a popup on a real system
   unnoticed. Escape for UI5 with `replace( … occ = 0 )` (abap2UI5's
-  `escape_literal` does), keep `$` out of literal WITH texts. **Gate: open.**
+  `escape_literal` does), keep `$` out of literal WITH texts. Fixed in the
+  runtime from 2.14.3 on (abaplint/transpiler#1987, pinned here).
 - **A `line_exists( )` in an `ELSEIF` is moved in front of the `IF` by the
   downport** - as a `READ TABLE … TRANSPORTING NO FIELDS`, which sets
   `sy-subrc`. An `IF sy-subrc <> 0.` after an earlier `READ` then tests the
@@ -1286,8 +1299,9 @@ break one of those four.
   (`z2ui5_cl_cockpit_session=>outcomes_of`, a unit test answered "unknown"
   for a draft that exists). Keep a READ's result at once
   (`DATA(lv_found) = xsdbool( sy-subrc = 0 ).`) when the chain has a
-  `line_exists( )` / `line_index( )` in an `ELSEIF`. **Gate: open** - the fix
-  belongs into the downport.
+  `line_exists( )` / `line_index( )` in an `ELSEIF`. Fixed in the downport
+  from abaplint 2.120.72 on (abaplint/abaplint#4401, pinned here): it saves
+  and restores `sy-subrc` and `sy-tabix` around the inserted READ.
 - **A time or date assigned to a number keeps its digits in the runtime.**
   `lv_secs = lv_time.` (`t` into `i`) is the seconds since midnight on a
   system, and `235930` under `npm run unit` - the same for `int8`, `p` and
@@ -1381,7 +1395,7 @@ the frozen legacy.
 The rest needs a running system with real data and is written down here
 precisely because no gate will catch it.
 
-**Backlog:** abaplint · abaplint-subrc-after-assign, abaplint-delete-index-in-loop
+**Backlog:** abaplint · abaplint-subrc-after-assign
 
 - **A syntax error is not an exception — `CATCH cx_root` does not stop it.**
   A class with a syntax error that is loaded at run time ends the request with
@@ -1490,22 +1504,27 @@ precisely because no gate will catch it.
   `DELETE`, the response structures) do have it, which is why only the
   `EXECUTE` statements were flagged and the `READ ENTITIES` in the same class
   was not. `cebe6bd`.
-- **`DELETE itab INDEX sy-tabix` inside a `LOOP AT` over the SAME table has two
-  failure modes, and only the loud one is reliably visible.** Deleting the
-  current row shifts every row after it while the loop's own cursor walks on,
-  so the row *after* each deletion is skipped:
+- **`DELETE itab INDEX sy-tabix` inside a `LOOP AT` over the SAME table
+  deletes whatever row `sy-tabix` names when the statement runs.** The loop
+  handles the deletion of its current row - the next pass is the row after
+  it - but `sy-tabix` is the loop's index only until another statement in
+  the body writes it: an inner `LOOP`, `READ TABLE`, `APPEND`, `INSERT`,
+  `COLLECT`, a method that does any of these.
 
-      LOOP AT tab INTO DATA(row).          " filters 10 rows, judges 5 of them
-        IF <drop it>.
-          DELETE tab INDEX sy-tabix.
-        ENDIF.
+      LOOP AT tab INTO DATA(row).
+        LOOP AT row-items INTO DATA(item) WHERE flag = abap_true.
+          DELETE tab INDEX sy-tabix.     " sy-tabix is the index in row-items
+          EXIT.
+        ENDLOOP.
       ENDLOOP.
 
-  Where `sy-tabix` is merely STALE but positive, nothing dumps: the statement
-  returns a plausible-looking, WRONG result — a filter that keeps rows it was
-  told to drop. Where it has been reset to **0** — an inner loop that has
-  ended, a `DO` between the `LOOP` and the `DELETE` — index 0 is a short dump,
-  and `TABLE_INVALID_INDEX` is the ABAP runtime error's own name for it.
+  Where the overwritten `sy-tabix` is positive, nothing dumps: the statement
+  deletes another row and the result looks plausible and is WRONG. Where it is
+  **0** - an inner `LOOP` that found nothing - index 0 is a short dump, and
+  `TABLE_INVALID_INDEX` is the ABAP runtime error's own name for it. (`DO`
+  sets `sy-index`, not `sy-tabix`.) When nothing in the body writes
+  `sy-tabix`, the statement deletes the right row, and the next change to the
+  body breaks it without a sign.
 
   Found by an e2e interaction driving samples-controls' app 352, whose
   `listClose` round-trip answered HTTP 500 with that error (2026-08-17).
@@ -1521,14 +1540,15 @@ precisely because no gate will catch it.
   `itab_filter_by_val`, app 070), and one in the vendored ajson
   (`z2ui5_cl_ajson_filter_lib`, upstream — not patched here). Two of them were
   wrong twice over: in `filter_itab` the `sy-tabix` belonged to an INNER loop,
-  so the index deleted was another table's, and elsewhere a `DO` loop between
-  the `LOOP` and the `DELETE` clobbers it again.
+  so the index deleted was another table's.
 
   Build the result instead — collect what is kept and assign it back. It reads
   as what it does and has neither failure mode. `DELETE itab WHERE …` is fine
   too where the condition can be expressed there; `DELETE itab INDEX sy-tabix`
   right after a `READ TABLE` is correct and common (`z2ui5_cl_ajson`), which is
-  why the shape cannot simply be banned.
+  why the shape cannot simply be banned. abaplint reports the shape as
+  `delete_index_in_loop` (abaplint/abaplint#4418, merged 2026-10-11, the
+  read-then-delete form excepted) from the first release after 2.120.74.
 
 - **Three environments, one source.** Code must work on NW 7.02, standard ABAP
   and ABAP Cloud (`check:standard`, `check:cloud`, `downport`). A statement
@@ -1551,6 +1571,8 @@ precisely because no gate will catch it.
   system with the refused cells at zero. The rule: whenever a write may be
   refused and the old value is promised, copy it aside first and put it back
   in the handler - `main_json_to_attri` already did, the delta path now does.
+  From runtime 2.14.3 on (abaplint/transpiler#1986, pinned here) the
+  transpiled runtime clears the target too, so `npm run unit` shows it.
 - **`ASSIGN dref->* TO <fs>` with a typed field symbol is a runtime error,
   not sy-subrc 4.** A sorted table assigned to a `TYPE STANDARD TABLE` field
   symbol dumps with `ASSIGN_TYPE_CONFLICT` on a system; the transpiler answers
@@ -1583,10 +1605,10 @@ only non-key components. Writing `<sum>-cnt` directly is fine.
   check accepts it. abaplint 2.120.64 reports nothing with every default
   rule on. The transpiled runtime runs the call (a test method with the same
   shape passes in `npm run unit`). Only a run on a system shows it.
-- **Gate:** none. A script would need the table kind behind the field symbol,
-  which is a type question for abaplint, not a regex.
-
-**Backlog:** abaplint · abaplint-sorted-line-changing-param
+- **Gate:** none here. A script would need the table kind behind the field
+  symbol, which is a type question for abaplint, not a regex. abaplint reports
+  it as `changing_sorted_line` (abaplint/abaplint#4420, merged 2026-10-11)
+  from the first release after 2.120.74.
 
 ## 6. Blind spots — green, or red, for the wrong reason
 

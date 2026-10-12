@@ -40,6 +40,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { classNameProblem, substitutePath, substituteText, substitutedFiles } from './substitute.mjs';
 import { agentSetupNextSteps, pinProblems, planAgentSetup, writePlan } from './agent-setup.mjs';
 
@@ -208,7 +209,13 @@ async function agentSetup(args) {
     console.error(`create-abap2ui5-app: ${err.message} - nothing was written`);
     return 1;
   }
-  writePlan(dir, plan.actions);
+  try {
+    writePlan(dir, plan.actions);
+  } catch (err) {
+    console.error(`create-abap2ui5-app: writing into ${dir} failed: ${err.message} - files before it may have been written; `
+      + 'run it again once the cause is fixed (it never overwrites, so a second run only completes the first)');
+    return 1;
+  }
 
   const width = Math.max(...plan.actions.map((a) => a.path.length));
   const verb = { add: 'added', merge: 'merged', skip: 'skipped' };
@@ -328,5 +335,18 @@ async function main(argv) {
   return 0;
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
-if (isMain) process.exit(await main(process.argv.slice(2)));
+/* Run as a command, not imported by the tests. `npm create` / `npm exec`
+ * start the package through its node_modules/.bin link: process.argv[1] is
+ * the LINK, while import.meta.url is the file it resolves to - compared as
+ * they came, the two never matched, and the command printed nothing and
+ * exited 0. Hence the realpath; and fileURLToPath rather than a URL's
+ * pathname, which keeps %20 for a space and a leading /C: on Windows. */
+export function invokedAsCommand(argv1 = process.argv[1], self = import.meta.url) {
+  if (!argv1) return false;
+  try {
+    return fs.realpathSync(path.resolve(argv1)) === fs.realpathSync(fileURLToPath(self));
+  } catch {
+    return false;
+  }
+}
+if (invokedAsCommand()) process.exit(await main(process.argv.slice(2)));
