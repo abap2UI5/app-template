@@ -139,8 +139,8 @@ it. Trailing whitespace is **abaplint — `whitespace_end`**, per repository and
 not everywhere; see below. Everything else in the table is this repository's
 script and nothing else — and a consumer repository that has not turned
 `xml_bom` on can still ship a BOM-less sidecar with a green CI. The EOF
-newline is **abaplint — `final_newline`** (abaplint/abaplint#4412, merged
-2026-10-12) from the first release after 2.120.74.
+newline is **abaplint — `final_newline`** too (abaplint/abaplint#4412), on in
+`abaplint.jsonc` since the 2.120.75 pin, next to `check:abapgit`.
 
 abapGit writes every file one specific way. Write it another way and it
 differs from what the system serializes back — permanently, on every pull, for
@@ -642,7 +642,7 @@ called on the wrong system.
 decide. The rest is **open** by construction: SLIN and ATC run in a system,
 and no gate outside one can stand in for them.
 
-**Backlog:** abaplint · abaplint-default-key-implicit, abaplint-get-reference-obsolete
+**Backlog:** abaplint · abaplint-avoid-use-extensions, abaplint-get-reference-obsolete
 
 Partly gated by `npm run check:atc`
 (`.github/scripts/extended-check-gate.mjs`). Prose was tried first and did not
@@ -663,7 +663,9 @@ and points here, so a new trap is added here and nowhere else.
   system on 2026-09-23, out of `test_token_odd_option` in
   `z2ui5_cl_ui5_util_context`, a test that feeds such rows on purpose. A test
   that needs an odd row builds it field by field and passes the odd value
-  through a variable. Gated (`range_row`): only literals are judged, and a
+  through a variable. Gated by abaplint — `range_row_values`
+  (abaplint/abaplint#4415), on in `abaplint.jsonc` since the 2.120.75 pin; it
+  replaced `check:atc`'s `range_row`. Only literals are judged, and a
   header default (`VALUE #( sign = `I` option = `EQ` ( low = … ) )`) counts.
 - **`LOOP AT … WHERE` over a standard table is a sequential read** and wants
   `"#EC CI_SORTSEQ` on the statement. Fifteen were annotated in the three
@@ -734,7 +736,9 @@ and points here, so a new trap is added here and nowhere else.
   **the linter's** finding here now: `wrong_abapdoc_position` is on in
   `abaplint.jsonc` since the 2.120.51 pin, and `check:atc` kept exactly one
   shape the rule does not decide — a block directly before `END OF`, measured
-  against that version. (No site of that shape has ever been found in any of
+  against that version. The plain comment between block and declaration was
+  `check:atc`'s too until 2.120.75, where the rule took it over
+  (abaplint/abaplint#4414). (No site of that shape has ever been found in any of
   the five checkouts, which is why it is a leftover regex and not a backlog
   item.) `abap2UI5/samples-stack` still runs its own `check:abapdoc`: its
   abaplint pin has not moved yet, and that script goes the same way when it
@@ -754,18 +758,17 @@ and points here, so a new trap is added here and nowhere else.
     abap-cloud-gui (`z2ui5_cl_cgui_layout`, `z2ui5_cl_cgui_report`,
     `z2ui5_if_cgui_variant_store`, fixed in
     abap2UI5-addons/abap-cloud-gui#9). `check:atc` asserted the opposite
-    until that day; it reports the shape now. `wrong_abapdoc_position`
-    reports it, and a plain comment between block and declaration, from
-    the first release after 2.120.74 (abaplint/abaplint#4414, merged
-    2026-10-12).
+    until that day and then reported the shape itself, until
+    `wrong_abapdoc_position` took it over in 2.120.75
+    (abaplint/abaplint#4414), on here since that pin.
   - **A `"!` line that begins with `@`** is read as a command:
     `"! @UI.presentationVariant's sortOrder …` is *"A command was expected
     after ABAP Doc symbol "@""*. Only `@parameter`, `@raising` and
     `@exception` may start a line. Break the line one word earlier, so the
     annotation sits mid-line, where it is plain text. Four sites in rap-ext,
-    fixed in abap2UI5-addons/rap-ext#19. Not gated here; abaplint reports
-    it as `abapdoc_leading_at` (abaplint/abaplint#4421, merged 2026-10-11)
-    from the first release after 2.120.74.
+    fixed in abap2UI5-addons/rap-ext#19. Gated by abaplint —
+    `abapdoc_leading_at` (abaplint/abaplint#4421), on in `abaplint.jsonc`
+    since the 2.120.75 pin.
 
   And one the rule does decide, where the repository has it off: four blocks
   in front of a chained `TYPES:` in rap-ext (same PR). That is
@@ -777,12 +780,12 @@ and points here, so a new trap is added here and nowhere else.
   and "not closed" in a system, and the block renders wrong. Write
   `&lt;wa&gt;`. AGENTS.md carried the rule as prose, and three of them still
   shipped in `z2ui5_if_client` (#2705) until a user's system reported them
-  (2026-09-02) - so it is a gate now: `check:atc` (`abapdoc_html`) reads every
-  `"!` line for a complete tag-like token outside the tags ABAP Doc knows
-  (`p em strong ul ol li h1-h3 br`). A comparison `a < b` is not a token and
-  not a finding. abaplint has the same check as `abapdoc_html_tag`
-  (abaplint/abaplint#4422, merged 2026-10-11) from the first release after
-  2.120.74; `check:atc` keeps it until the pin catches up.
+  (2026-09-02) - so it was made a gate, `check:atc` (`abapdoc_html`). Gated by
+  abaplint — `abapdoc_html_tag` (abaplint/abaplint#4422, from this
+  catalogue) since the 2.120.75 pin, on in `abaplint.jsonc`; the `check:atc`
+  part is gone. It reports a tag-like token outside the tags ABAP Doc knows
+  (`p em strong ul ol li h1-h3 br`); a comparison `a < b` is not a token and
+  not a finding.
 
 - **`PREFERRED PARAMETER` is ignored unless every IMPORTING parameter is
   optional.** The addition names the parameter a short-form call `meth( x )`
@@ -842,16 +845,15 @@ and points here, so a new trap is added here and nowhere else.
   `abap2UI5/samples-controls` (2026-10-04, `z2ui5_cl_smpc_demo_002->row_json`,
   fixed in abap2UI5/samples-controls#251). An abaplint-based probe over
   abap2UI5, samples-controls and samples-stack found no other instance.
-  No gate here reports it.
 
   **Second case, with `*` and `/` (2026-10-06).** A user's pull of
   `abap2UI5-addons/admin-cockpit` reported the same warning for
   `z2ui5_cl_cockpit_stats->p95`: `DATA(lv_target) = lv_total * 95 / 100.`
   with `lv_total TYPE p LENGTH 16 DECIMALS 0`. So the length of the operand
   does not carry over either: a P(16,0) operand still gives P(8,0). Fixed by
-  declaring `lv_target` with the operand's type. abaplint reports both
-  shapes as `inline_packed_computation` (abaplint/abaplint#4413, merged
-  2026-10-12) from the first release after 2.120.74.
+  declaring `lv_target` with the operand's type. Gated by abaplint —
+  `inline_packed_computation` (abaplint/abaplint#4413), both shapes, on in
+  `abaplint.jsonc` since the 2.120.75 pin.
 - **`SORT` or `DELETE ADJACENT DUPLICATES` on a table with an empty key.**
   `SORT result.` and `DELETE ADJACENT DUPLICATES FROM result.` on a
   `STANDARD TABLE OF string WITH EMPTY KEY` give the warning *""RESULT" is a
@@ -863,10 +865,10 @@ and points here, so a new trap is added here and nowhere else.
   components you mean. Found by a user's pull of
   `abap2UI5-addons/admin-cockpit` (2026-10-06,
   `z2ui5_cl_cockpit_inst->get_implementers`). abaplint 2.120.70 reports
-  nothing. Not gated here: the key is in the table's type, which can be a
-  returning parameter typed in another class. abaplint reports it as
-  `sort_empty_key` (abaplint/abaplint#4419, merged 2026-10-11) from the
-  first release after 2.120.74.
+  nothing. No script here could decide it: the key is in the table's type,
+  which can be a returning parameter typed in another class. Gated by
+  abaplint — `sort_empty_key` (abaplint/abaplint#4419), on in
+  `abaplint.jsonc` since the 2.120.75 pin.
 - **`DATA( )` from a generic parameter** (`DATA(lv) = val` with
   `val TYPE clike`) is "the fixed type STRING is used for the generic type
   CLIKE": the inline declaration has to pick a type, and SLIN objects to the
@@ -1086,7 +1088,42 @@ transpiled to JS (`npm run auto_transpile`), and is linted against
 `check:standard` and `check:cloud`. A construct can be valid ABAP and still
 break one of those four.
 
-**Backlog:** open-abap · runtime-rescale-not-implemented, runtime-packed-copy-precision
+**Backlog:** open-abap · runtime-packed-copy-precision, runtime-get-time-stamp-double, core-class-source-not-available, core-seo-interface-implem-get-all
+
+- **A test guarded with `IF sy-sysid = 'ABC'. RETURN.` never runs under `npm run unit`** -
+  `ABC` is the fixed `sy-sysid` of `@abaplint/runtime`, so the guard is a Node skip in
+  disguise, and one that `abap_transpile.json` does not list: the suite reports the
+  method as run. Nine tests in `src/99` sat behind it (2026-10-12); seven pass on Node
+  with the guard gone, the two that do not are in the skip list with their backlog
+  item. Skip through the config, which names the reason, never through `sy-sysid`.
+  The same inventory found five runtime gaps that each keep one test off Node - a
+  lower-case dynamic type name in `CREATE DATA … TYPE (name)`, an `ASSIGN COMPONENT`
+  name with a dash in it, `cl_abap_refdescr=>create( )` without `kind`,
+  `cl_abap_tstmp=>add( )` dropping the fraction of a `timestampl`, and
+  `describe_by_data_ref( )` on a reference to a reference - every one written up in
+  the backlog with the fix, measured in memory against the transpiled tree. All
+  five are fixed upstream and pinned here since 2026-10-13 (`@abaplint/runtime`
+  2.14.5, open-abap-core `9c1271b`), and the tests they kept off Node run. Two
+  in-code probes were dead: `CREATE OBJECT TYPE ('CL_ABAP_ZIP')` and
+  `describe_by_name( 'DFIES' )` both succeed in open-abap-core, so the tests behind
+  them run in full.
+
+- **A `timestampl` from `GET TIME STAMP` is noisy in the runtime, and on a
+  `:00` second it is not a time.** `@abaplint/runtime` fills the long stamp by
+  adding the milliseconds as a JS double to a 21-digit value, and the copy of a
+  short `timestamp` into a `timestampl` takes the same double (abaplint/transpiler#1962).
+  The noise stays inside the second until the clock is on a whole minute with
+  0 or 1 ms: then `20261014103400` arrives as `…103399.9990784`, the ISO text
+  reads `10:33:99`, and `cl_abap_tstmp=>add( )` / `subtractsecs( )` die with a
+  JS `RangeError: Invalid time value` that no `CATCH` sees. It cost the release
+  of 1.147.0 its first backend-prebuilt run (2026-10-14, `npm run unit` at
+  05:34:00 UTC in `zcl_serializer_live`'s `test_sweep_expiry`); the same tree
+  was green minutes before and after. So a unit test that fails once and
+  passes on the re-run, with that stack, is this and not the change under
+  test. A test that needs a clock should take a literal stamp or a whole hour
+  (those copy exactly) rather than `time_get_timestampl( )`, until the two
+  fixes land; the production sweep on the node runtime is exposed the same way,
+  about two in sixty thousand sweeps. Backlog item: runtime-get-time-stamp-double.
 
 - **Never put a 7.02 built-in function inside a table-expression key.** This is
   the sharpest case in this section, because all four checks were green and a
@@ -1114,6 +1151,10 @@ break one of those four.
   **Gate:** `npm run check:downport` over `src/` keeps the two positions an
   author writes 7.02-ready themselves, which the downport passes through as
   they stand: a `WITH [TABLE] KEY` operand and an internal-table `WHERE`.
+  abaplint's `check_syntax` reports the `READ TABLE … WITH [TABLE] KEY` one
+  below 7.40 as well (abaplint/abaplint#4432, merged 2026-10-12, from this
+  catalogue) from 2.120.76 on, pinned here; the `WHERE` positions
+  and the predicate operand stay this gate's alone.
   **A third position, same cause: the operand of a predicate expression.**
   `condense( val ) IS INITIAL` answers `Unexpected operator "IS"` on 7.02 —
   the name is only read as a function where a string expression is allowed,
@@ -1266,12 +1307,13 @@ break one of those four.
   (abaplint/transpiler#1971, pinned here since 2.14.2): the parameter
   becomes a `Packed`. A host on an older transpiler still needs the rewrite
   above.
-- **`rescale( )` is not in the runtime** - `abap.builtin.rescale is not a
-  function` at runtime, the transpile is green. `round( )` with `dec`,
-  `prec` and every `mode` is, from `@abaplint/runtime` 2.13.94 on (2.13.93
-  throws `round(), todo, handle decimals` for any `dec` other than 0 -
-  still the version the MCP server's Node backend installs). Use `round( )`
-  where the scale of the result does not matter.
+- **`rescale( )` is not in the runtime before 2.14.4** - `abap.builtin.rescale
+  is not a function` at runtime, the transpile is green. Fixed from
+  `@abaplint/runtime` 2.14.4 on (abaplint/transpiler#1997, pinned here).
+  `round( )` with `dec`, `prec` and every `mode` is in from 2.13.94 on
+  (2.13.93 throws `round(), todo, handle decimals` for any `dec` other than
+  0 - still the version the MCP server's Node backend installs). On an older
+  runtime use `round( )` where the scale of the result does not matter.
 - **`substring_after( )` / `substring_before( )` ignore `occ`, `len` and
   `case` in the runtime.** `substring_after( val = path sub = '-' occ = -1 )`
   cuts at the FIRST dash under `npm run unit`, at the last on a system.
@@ -1395,8 +1437,6 @@ the frozen legacy.
 The rest needs a running system with real data and is written down here
 precisely because no gate will catch it.
 
-**Backlog:** abaplint · abaplint-subrc-after-assign
-
 - **A syntax error is not an exception — `CATCH cx_root` does not stop it.**
   A class with a syntax error that is loaded at run time ends the request with
   the runtime error `SYNTAX_ERROR`, a short dump. No `TRY` around the call
@@ -1453,6 +1493,13 @@ precisely because no gate will catch it.
   **2** re-assign — about one in three needs the `UNASSIGN`. The #1937 fix
   itself is a simple case: `<attri>` is declared at method start and assigned
   in two mutually exclusive branches.
+  Gated by abaplint — `subrc_after_assign`, from 2.120.75 on
+  (abaplint/abaplint#4417, written from this repository's backlog), on in
+  `abaplint.jsonc`. It replaced the script gate this repository ran for it: on
+  2.120.75 it reports the same 16 sites as the detector that gate ran (11 in
+  the frozen `src/99`, 5 in the mirrors `src/00/01` and `src/00/02`), and none
+  in the packages the ruleset reports on. The `UNASSIGN` half stays a review
+  point — the rule reports the test, not the missing `UNASSIGN`.
 - **An object name inside a string literal is not a reference — a rename sweep
   will get it wrong and nothing will notice.** `#2564` renamed `z2ui5_cl_exit`
   to `z2ui5_cl_ui5_user_exit` and carried the rename into the *interface*
@@ -1546,9 +1593,9 @@ precisely because no gate will catch it.
   as what it does and has neither failure mode. `DELETE itab WHERE …` is fine
   too where the condition can be expressed there; `DELETE itab INDEX sy-tabix`
   right after a `READ TABLE` is correct and common (`z2ui5_cl_ajson`), which is
-  why the shape cannot simply be banned. abaplint reports the shape as
-  `delete_index_in_loop` (abaplint/abaplint#4418, merged 2026-10-11, the
-  read-then-delete form excepted) from the first release after 2.120.74.
+  why the shape cannot simply be banned. Gated by abaplint —
+  `delete_index_in_loop` (abaplint/abaplint#4418, the read-then-delete form
+  excepted), on in `abaplint.jsonc` since the 2.120.75 pin.
 
 - **Three environments, one source.** Code must work on NW 7.02, standard ABAP
   and ABAP Cloud (`check:standard`, `check:cloud`, `downport`). A statement
@@ -1605,10 +1652,9 @@ only non-key components. Writing `<sum>-cnt` directly is fine.
   check accepts it. abaplint 2.120.64 reports nothing with every default
   rule on. The transpiled runtime runs the call (a test method with the same
   shape passes in `npm run unit`). Only a run on a system shows it.
-- **Gate:** none here. A script would need the table kind behind the field
-  symbol, which is a type question for abaplint, not a regex. abaplint reports
-  it as `changing_sorted_line` (abaplint/abaplint#4420, merged 2026-10-11)
-  from the first release after 2.120.74.
+- **Gate: abaplint — `changing_sorted_line`** (abaplint/abaplint#4420), on in
+  `abaplint.jsonc` since the 2.120.75 pin. A script could not decide it: it
+  needs the table kind behind the field symbol, a type question.
 
 ## 6. Blind spots — green, or red, for the wrong reason
 
@@ -1649,6 +1695,149 @@ numbered section above.
   the `.abap` files so the `.clas.xml` keeps its `object_naming` and
   `xml_consistency` coverage.
 
+## 7. The rule stock — read for it by hand until abaplint decides it
+
+**Gate: open**, by definition: every check below is an abaplint rule idea in
+`backlog/` (`backlog/ABAPLINT.md` lists them, each item carries the bad
+example, the scope and the evidence). Sections 1–6 hold defects that reached
+`main`; this section is the other half — shapes other linters, Clean ABAP
+and the fix history of open-source ABAP code say go wrong, collected on
+2026-10-11/12 and probed against abaplint 2.120.75:
+no rule reports them yet. Until one ships and is switched on in
+`abaplint.jsonc`, the only check is a reader. Read a change under `src/` for
+them the way you read it for sections 1–5. When a rule lands, its item goes
+and the line here goes with it.
+
+The groups are by consequence, worst first. A line names the shape, then the
+fix.
+
+### Wrong results and dumps — read every change for these
+
+- **A stale field symbol behind `IS ASSIGNED`.** `READ TABLE … ASSIGNING <fs>`
+  in a loop, then `IF <fs> IS ASSIGNED` — a failed READ leaves `<fs>` on the
+  previous row. `UNASSIGN <fs>` before the READ (section 5 has the #1937
+  half of this).
+- **A stale system field.** A sy-subrc test after a statement that does not
+  set sy-subrc (a method call without EXCEPTIONS, an assignment, CLEAR); an
+  `INDEX sy-tabix` after a nested READ or LOOP overwrote sy-tabix. Read the
+  field right after the statement that sets it, into a variable if needed.
+- **A read that needs a SORT.** `READ TABLE … BINARY SEARCH` and
+  `DELETE ADJACENT DUPLICATES … COMPARING` on a table not sorted by those
+  fields silently miss rows. SORT by exactly those fields first, or use a
+  sorted table.
+- **LOOP and READ targets.** The work area or field symbol read after
+  `ENDLOOP` (it holds the last row, or nothing); an inner LOOP/READ reusing the
+  outer target; `READ TABLE … INTO <fs>` overwriting the row `<fs>` points to
+  (ASSIGNING was meant); a target typed with another structure than the line.
+- **Loops that do not loop.** A body that ends with RETURN/EXIT/RAISE on every
+  path; a WHILE whose condition variables the body never writes.
+- **Blanks a character literal loses.** `REPLACE ALL OCCURRENCES OF ' '` has an
+  empty pattern and raises `CX_SY_REPLACE_INFINITE_LOOP`; `'Hello '` loses its
+  blank in CONCATENATE and `&&`. Backtick literals keep the blank.
+- **Constant comparisons.** `a = a`, `x <> A OR x <> B` (always true),
+  `x = A AND x = B` (always false) — copy-paste bugs (abap2UI5 `7647c26`).
+- **Implicit conversions.** A character field compared with a number, a d/t
+  field with a formatted literal (`'2024-01-01'`); a literal or constant longer
+  than its target; TIMESTAMPL assigned to TIMESTAMP (the fraction is cut); a
+  constant offset/length on a string without a length check; `DATA( )` from a
+  generically typed parameter (the type is decided at runtime).
+- **Field symbols and references.** A field symbol read that nothing in the
+  method assigns; a data reference dereferenced on a path where it can be
+  initial.
+- **VALUE for a unique-key table** with two literal rows of the same key — a
+  dump at runtime.
+- **Classic EXCEPTIONS.** `CALL FUNCTION … EXCEPTIONS` without `OTHERS` (an
+  unlisted exception dumps), a named exception mapped to 0, the sy-subrc of the
+  EXCEPTIONS never read, a method with classic exceptions called functionally.
+- **CATCH that cannot catch.** A CATCH of an exception nothing in the TRY can
+  raise; RAISE of a cx_root-typed variable in a method without a RAISING
+  clause; inside `CATCH … INTO x`, a RAISE that does not pass `previous = x`
+  (section 3's cause rule, `check:cause`, covers the message form only).
+- **Discarded results.** A functional call whose RETURNING value nobody reads.
+- **Copy-paste.** Two WHEN blocks with identical bodies — merge the conditions,
+  or one of them is the bug.
+- **Shadowing.** A local with the name of an attribute or a global (`mv_x` as
+  a local), a DATA declared in an IF/LOOP block and used after it.
+- **SQL that reads or writes too much or too little.** DELETE FROM / UPDATE
+  without WHERE; `INNER JOIN` on a text table (rows without a translation
+  vanish — LEFT OUTER JOIN with the language in the ON); FOR ALL ENTRIES whose
+  field list lacks the primary key (duplicates collapse); a COMMIT, a CALL
+  FUNCTION … DESTINATION or a MESSAGE inside `SELECT … ENDSELECT` or an open
+  cursor; SQL wildcards in CP (`%`) and ABAP wildcards in LIKE (`*`).
+- **Function module calls** whose actual parameter type does not fit the
+  formal one — the dump comes at runtime, not at activation.
+- **Control levels** (`AT NEW`, `AT END OF`, `AT FIRST`/`LAST`) inside
+  `LOOP … WHERE` or `FROM`/`TO` — they see the filtered rows and break wrongly.
+- **RAP.** COMMIT/ROLLBACK WORK, IN UPDATE TASK or SUBMIT in a behavior
+  handler or saver.
+- **Tests.** An assertion that cannot fail (act = exp, two literals); a test
+  that expects an exception but has no `fail( )` after the call; DB writes,
+  COMMIT, SUBMIT or RFC in a FOR TESTING class; ASSERT in production code
+  (a dump, not an error) and in tests (dumps the run instead of failing it).
+
+**Backlog:** abaplint · abaplint-stale-fs-is-assigned, abaplint-stale-sy-fields, abaplint-sort-before-read, abaplint-loop-target-misuse, abaplint-suspicious-loop, abaplint-literal-blanks, abaplint-self-comparison, abaplint-char-numeric-comparison, abaplint-literal-exceeds-target, abaplint-timestampl-to-timestamp, abaplint-string-offset-unguarded, abaplint-inline-generic-source, abaplint-fs-never-assigned, abaplint-possibly-unbound-reference, abaplint-value-duplicate-unique-key, abaplint-classic-exceptions, abaplint-caught-never-raised, abaplint-reraise-cx-root-undeclared, abaplint-catch-handling, abaplint-unused-returning-value, abaplint-duplicate-code, abaplint-variable-scope, abaplint-sql-without-where, abaplint-inner-join-text-table, abaplint-fae-duplicate-rows, abaplint-commit-in-select-loop, abaplint-wildcard-mismatch, abaplint-call-parameter-type-conflict, abaplint-control-level-restricted-loop, abaplint-rap-forbidden-statement, abaplint-unit-test-assertions, abaplint-unit-test-side-effects, abaplint-assert-in-production
+
+### Activation — the system refuses these, `check_syntax` does not yet
+
+- A CATCH of a subclass after the CATCH of its superclass in the same TRY.
+- `RAISE EXCEPTION … MESSAGE` for a class without IF_T100_MESSAGE.
+- A write to a key component of a sorted or hashed line through a field
+  symbol (`<line>-key = …` after LOOP/READ … ASSIGNING) — the CHANGING form is
+  section 5's.
+- `LOOP … USING KEY` a sorted secondary key with a key component under OR or
+  CP in the WHERE.
+- An SAP API or addition the configured release does not have; GET REFERENCE
+  under the Cloud language version.
+
+**Backlog:** abaplint · abaplint-syntax-catch-order, abaplint-syntax-raise-message-t100, abaplint-syntax-sorted-key-write, abaplint-syntax-secondary-key-where, abaplint-release-api-availability
+
+### Security
+
+- A literal assigned to or passed as a password, secret or token.
+- A dynamic WHERE, field list or table name built from input without
+  `cl_abap_dyn_prg` (`escape_quotes`, `check_column_name`, …).
+
+**Backlog:** abaplint · abaplint-hardcoded-credentials, abaplint-sql-injection-dynamic
+
+### Style and Clean ABAP — only where the house style asks for it
+
+These are Clean ABAP clean-ups, not defects. AGENTS.md
+("Coding Style") decides which apply here; three of them it rules out:
+
+| Check | Here |
+|---|---|
+| Empty PROTECTED/PRIVATE SECTION removed | **no** — AGENTS.md keeps all three sections |
+| CATCH cx_root avoided | **no** — AGENTS.md catches cx_root and re-raises it with `previous` |
+| OPTIONAL and boolean IMPORTING parameters avoided | **no** for the public API (`z2ui5_if_client` relies on them); fine in new private methods |
+| Comments: `"` not `*`, indented like the next line, a space after `"`, no forgotten TODO/FIXME | yes |
+| Guard clauses: `IF … CONTINUE` instead of CHECK in a loop; an early exit instead of a long IF at the end of a loop or method | yes |
+| A method returning `abap_bool` named `is_`/`has_`/… | yes for new methods; the `check_on_*( )` names are API |
+| `+=`, `to_upper( )`, `condense( )` instead of `x = x + …`, TRANSLATE, CONDENSE | yes — the downport expands `+=` for 7.02; `to_upper( )` and `condense( )` exist on 7.02 already |
+| `FINAL( )` for inline declarations never changed | **not yet** — 7.57; check that the downport handles it first |
+| A table expression / `VALUE #( … OPTIONAL )` instead of READ TABLE + sy-subrc | yes, where not-found is skipped; the exception differs otherwise |
+| SORT … BY with ASCENDING/DESCENDING stated | optional |
+| CLEAR right after DATA, a needless `me->` | yes |
+| Classes of only static methods, interfaces of only constants, public methods outside an interface | judge per case |
+| Class size (methods, attributes per class), statements per WHEN | the method limits in AGENTS.md apply; the rest is a smell |
+| Magic numbers, sy-uname/sy-sysid compared with a literal, `'@00@'` icon literals | name them as constants |
+| MESSAGE TYPE E/A/X or WRITE in a global class; MESSAGE ID sy-msgid … TYPE sy-msgty | no dialog in classes — raise an exception |
+| COLLECT; a table with the implicit default key | avoid (AGENTS.md: no default key) |
+| A CONV whose target already has the type; `"#EC CI_SUBRC` where sy-subrc is checked; an OPTIONAL parameter no caller supplies; a message nothing uses | remove |
+
+**Backlog:** abaplint · abaplint-comment-style, abaplint-guard-clauses, abaplint-method-signature-style, abaplint-class-design, abaplint-size-metrics, abaplint-modern-statements, abaplint-needless-code, abaplint-prefer-final, abaplint-read-table-to-expression, abaplint-sort-explicit-order, abaplint-magic-number, abaplint-hardcoded-values, abaplint-message-usage, abaplint-avoid-use-extensions, abaplint-redundant-conv-target, abaplint-unnecessary-ec-ci-subrc, abaplint-unused-method-parameter-global, abaplint-unused-message
+
+### Objects and files
+
+- A UTF-8 BOM at the start of a `.abap` file (`check:abapgit` covers this
+  repository; other repositories need the rule).
+- PROG/FUGR/CLAS XML without fixed point arithmetic.
+- An object whose original language is not the configured one.
+- Append-structure fields without the ZZ/YY prefix.
+- A transaction whose program, class or screen does not exist.
+- A global class with logic and no test class.
+
+**Backlog:** abaplint · abaplint-abap-file-bom, abaplint-fixed-point-arithmetic, abaplint-master-language, abaplint-append-field-prefix, abaplint-tran-consistency, abaplint-class-without-test-class
+
 ---
 
 ## When a pull does show diffs
@@ -1669,7 +1858,8 @@ Keep the catalogue worth reading: one entry, one defect that actually happened.
 
 1. **Put it in the right section** — 1 round trip and import, 2 activation,
    3 extended check, 4 downport/transpile, 5 runtime, 6 blind spots. A new kind
-   of failure gets a new section.
+   of failure gets a new section. Section 7 is the rule stock, not cases: a
+   case that bites us moves out of it into 1–6.
 2. **Name the evidence** — the commit, PR, issue or file where it bit us. An
    entry without a case is a rule somebody will delete as speculation. Say when
    it was a user who found it; those are the expensive ones.
