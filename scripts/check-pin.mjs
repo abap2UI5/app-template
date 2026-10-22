@@ -91,6 +91,24 @@ export const SITES = [
   },
 ];
 
+/** The mirrored half of AGENTS.md documents the framework's current client
+ * API, and the pin decides which API the gates compile against. The two move
+ * independently - the mirror by a daily pull request, the pin by hand - so the
+ * guide can describe a class the pinned release does not have, and a reader
+ * who follows it gets an unknown-class error from `npm run check` with no hint
+ * that the pin is the cause. One row per API the guide names that arrived
+ * after the template's floor: the symbol as the guide spells it, and the
+ * release that introduced it. */
+export const API_FLOORS = [
+  { symbol: 'z2ui5_cl_ui5_llm', since: '1.148.0' },
+];
+
+const olderThan = (a, b) => {
+  const [x, y] = [a, b].map((v) => v.split('.').map(Number));
+  for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] < y[i];
+  return false;
+};
+
 /** The offline half: every place the release is written, read from `root`.
  *  Returns what was found, the optional places skipped, the distinct versions,
  *  and the problems - a missing required file, a required pattern that no
@@ -133,6 +151,20 @@ export function readPinSites(root = ROOT) {
       `the three places disagree: ${distinct.join(' / ')}\n`
       + found.map((f) => `      ${f.version}  ${f.file} (${f.what})`).join('\n'),
     );
+  }
+  const agents = path.join(root, 'AGENTS.md');
+  if (distinct.length === 1 && fs.existsSync(agents)) {
+    const guide = fs.readFileSync(agents, 'utf8');
+    for (const api of API_FLOORS) {
+      if (guide.includes(api.symbol) && olderThan(distinct[0], api.since)) {
+        problems.push(
+          `AGENTS.md documents ${api.symbol}, which the framework has from ${api.since} on, `
+          + `but the pin is ${distinct[0]}\n`
+          + '    the mirrored guide is ahead of the pin: move the pin (and run `npm run check`),\n'
+          + '    or a reader following the guide gets an unknown-class error with no hint why',
+        );
+      }
+    }
   }
   return { found, skipped, distinct, problems };
 }

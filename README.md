@@ -76,7 +76,7 @@ have (it skips it and says so), only adding to your `package.json` and
    GitHub is the first).
 2. Install the [abap2UI5 framework](https://github.com/abap2UI5/abap2UI5) in
    your system via [abapGit](https://abapgit.org/), then install this repo
-   the same way. The starter app needs framework **1.145.0 or newer** — that
+   the same way. The starter app needs framework **1.148.0 or newer** — that
    is the release the local gates lint against, pinned in `abaplint.jsonc`.
 3. Create an ICF endpoint for the framework's HTTP handler (see the
    [documentation](https://abap2ui5.github.io/docs/)) and open

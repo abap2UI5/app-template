@@ -55,6 +55,24 @@ test('check-pin: every non-optional site pattern still matches its file', () => 
   }
 });
 
+test('check-pin: a guide that documents an API newer than the pin is a problem', async (t) => {
+  // The mirrored half of AGENTS.md and the pin move independently; the
+  // template once sat at 1.145.0 while its guide described z2ui5_cl_ui5_llm
+  // (1.148.0). A reader following the guide got an unknown-class error.
+  const { readPinSites, API_FLOORS } = await import('../check-pin.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'a2ui5-pin-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const api = API_FLOORS[0];
+  fs.writeFileSync(path.join(dir, 'abaplint.jsonc'), '{ "dependencies": [ { "branch": "1.145.0" } ] }');
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), `pinned to release tag \`1.145.0\`\n\n${api.symbol}=>create_claude( )\n`);
+  const stale = readPinSites(dir);
+  assert.ok(stale.problems.some((p) => p.includes(api.symbol) && p.includes(api.since)), stale.problems.join('\n'));
+
+  fs.writeFileSync(path.join(dir, 'abaplint.jsonc'), `{ "dependencies": [ { "branch": "${api.since}" } ] }`);
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), `pinned to release tag \`${api.since}\`\n\n${api.symbol}=>create_claude( )\n`);
+  assert.deepEqual(readPinSites(dir).problems, []);
+});
+
 test('check-pin: the three places name one release, and the gate passes', () => {
   const versions = new Set([
     /"branch":\s*"(\d+\.\d+\.\d+)"/.exec(read('abaplint.jsonc'))[1],
