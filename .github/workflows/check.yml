@@ -138,6 +138,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: abap2UI5 unit tests (transpiled backend, no system)
-        uses: abap2UI5/mcp-server@edc42df13b3bc49ca53df331bf55c44c5ab38e70 # v1.0.0
+        uses: abap2UI5/mcp-server@214e1e133588c4f159a1144426b6f8b8b14c415e # v1.0.0
         with:
           paths: src
