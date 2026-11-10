@@ -322,7 +322,7 @@ in the abap2UI5 linter (which keeps the abap2UI5-specific checks).
 
 | Trap | Rule |
 |---|---|
-| **`class_constructor` must be in the PUBLIC SECTION** | ABAP requires it; the class pool does not activate otherwise. abaplint's `constructor_visibility_public` only looks at the instance `constructor` — verified: a `CLASS-METHODS class_constructor.` in a `PRIVATE SECTION` produces no finding. This is why `z2ui5_cl_ui5_frontend` fills `ct_box_type` lazily in `box_resolve( )` instead of in a static constructor (#2547) — see the comment on the attribute. Gated by `check:abapgit`, and by `abap2ui5lint`'s `class-constructor-visibility` |
+| **`class_constructor` must be in the PUBLIC SECTION** | ABAP requires it; the class pool does not activate otherwise. abaplint's `constructor_visibility_public` only looks at the instance `constructor` — verified: a `CLASS-METHODS class_constructor.` in a `PRIVATE SECTION` produces no finding. This is why `z2ui5_cl_ui5_srv_message` fills `ct_box_type` lazily in `box_resolve( )` instead of in a static constructor (#2547) — see the comment on the attribute. Gated by `check:abapgit`, and by `abap2ui5lint`'s `class-constructor-visibility` |
 | **`CREATE DATA … TYPE HANDLE` takes a data object, not a method call** | `CREATE DATA lr TYPE HANDLE cl_abap_structdescr=>create( lt_comp ).` is "No method can be specified in the current position" on a system - the operand has to be a variable holding the descriptor. abaplint parses the call as an expression and the transpiler runs it, so a test class shipped this way through every gate and a user's system reported it (2026-09-02, `ltcl_app_shapes` in `z2ui5_cl_ui5_srv_model`). Gated by `check:atc` (`handle_call`): a `TYPE HANDLE` operand with a `(` in it. Upstream from abaplint 2.120.65 on (abaplint/abaplint#4356): the operand is a plain data object in the `CREATE DATA` grammar, so a call there is a `parser_error` |
 | **`->*` needs a data reference variable in front of it** | `result = row_ref( iv_name )->*.` is a syntax error on 7.50 - the dereferencing operator takes a reference variable, not the result of a functional method call or a constructor expression; hoist the reference into its own variable and dereference that. abaplint parses the chain at `syntax.version` v750 and the transpiler runs it, so the line was green through every gate here and a user on SAP_ABA 750 SP33 reported it (#2722, `ltcl_00_base~row` in `z2ui5_cl_ui5_srv_model` - the same test class `handle_call` came from). Gated by `check:atc` (`deref_call`): a `)` directly in front of a `->*`. Measured on a 7.58 system (2026-10-03): `get_ref( )->*` and `CAST ty( … )->*` are fine there, `NEW ty( … )->*` is a syntax error even there. Upstream from abaplint 2.120.66 on (abaplint/abaplint#4361): a `->*` directly after a method call is a `parser_error` below v756, and from 2.120.68 on (abaplint/abaplint#4371) `check_syntax` reports `NEW ty( … )->*` in every release |
 | **`setup( )` / `teardown( )` cannot be called directly** | *The special method "TEARDOWN" cannot be called directly.* Two test classes in abap2UI5-addons/abap-cloud-gui had `setup( )` call `teardown( )` to clear their table rows first. A 7.58 SYNTAX_CHECK refused both (2026-10-04, fixed in abap2UI5-addons/abap-cloud-gui#9). The same holds for `class_setup` / `class_teardown`. Put the shared code into a method of its own and call that from both. Upstream from abaplint 2.120.68 on (abaplint/abaplint#4372): `check_syntax` reports the call in a `FOR TESTING` class, with or without `me->`, through the class name and as `CALL METHOD` |
@@ -588,7 +588,7 @@ same class fired. The parameter is called `fallback` now.
 
 It bit again two days later. `abap2UI5-addons/abap-agent-runtime` shipped
 three such parameters - `z2ui5_cl_agent_settings=>check_llm`,
-`z2ui5_cl_agent_session->rows_of`, `z2ui5_cl_agent_llm_anthropic=>setting` -
+`z2ui5_cl_agent_session->rows_of`, `z2ui5_cl_agent_llm_claude=>setting` -
 and a user's pull (2026-10-08) refused 11 classes: the three themselves
 (*"Unable to interpret "DEFAULT""*, *"… "RETURNING""*, *"… "OPTIONAL""* - the
 token after the swallowed `TYPE`), and every class that uses
@@ -759,7 +759,7 @@ and points here, so a new trap is added here and nowhere else.
   - **A blank line, inside the block or between the block and its
     declaration**, detaches it like a comment does. Found in
     abap-cloud-gui (`z2ui5_cl_cgui_layout`, `z2ui5_cl_cgui_report`,
-    `z2ui5_if_cgui_variant_store`, fixed in
+    `z2ui5_if_cgui_variants`, fixed in
     abap2UI5-addons/abap-cloud-gui#9). `check:atc` asserted the opposite
     until that day and then reported the shape itself, until
     `wrong_abapdoc_position` took it over in 2.120.75
@@ -1091,7 +1091,7 @@ transpiled to JS (`npm run auto_transpile`), and is linted against
 `check:standard` and `check:cloud`. A construct can be valid ABAP and still
 break one of those four.
 
-**Backlog:** open-abap · runtime-packed-copy-precision, core-class-source-not-available, core-seo-interface-implem-get-all, runtime-alpha-in-width, runtime-importing-copy-by-type-name, runtime-create-object-classic-exceptions, runtime-default-inherited-constant, core-serialize-object-identity, core-deserialize-nested-data-ref, transpiler-new-data-type-components, transpiler-case-type-without-into, transpiler-raise-resumable, transpiler-super-constructor-root-class, runtime-absolute-class-name, transpiler-ref-with-type, transpiler-let-field-symbol, core-abap-matcher-create
+**Backlog:** open-abap · runtime-packed-copy-precision, core-class-source-not-available, core-seo-interface-implem-get-all, runtime-alpha-in-width, runtime-importing-copy-by-type-name, runtime-create-object-classic-exceptions, runtime-default-inherited-constant, core-serialize-object-identity, core-deserialize-nested-data-ref, transpiler-new-data-type-components, transpiler-case-type-without-into, transpiler-raise-resumable, transpiler-super-constructor-root-class, runtime-absolute-class-name, transpiler-ref-with-type, transpiler-let-field-symbol, core-abap-matcher-create, transpiler-void-superclass
 
 - **A test guarded with `IF sy-sysid = 'ABC'. RETURN.` never runs under `npm run unit`** -
   `ABC` is the fixed `sy-sysid` of `@abaplint/runtime`, so the guard is a Node skip in
@@ -1454,8 +1454,9 @@ break one of those four.
   constructs `abaplint --fix` leaves unchanged or writes wrong, each reproduced
   in one class on 2.120.92. Write them the 7.02 way where a source is
   downported: a cast in a TRY instead of `IS INSTANCE OF` (one of these blocks
-  the whole class, `Expected ENDMETHOD`); an `ORDER BY` in a SELECT that has a
-  WHERE and `UP TO`; `SELECT SINGLE * FROM` instead of `SELECT SINGLE FROM ...
+  the whole class, `Expected ENDMETHOD`); an `ORDER BY`, or INTO and `UP TO`
+  ahead of WHERE, in a SELECT that has a WHERE and `UP TO` (the dynamic form
+  blocks the whole class too, without any message); `SELECT SINGLE * FROM` instead of `SELECT SINGLE FROM ...
   FIELDS *`; a row loop instead of `MOVE-CORRESPONDING`/`CORRESPONDING #( )`
   between tables; an assignment plus CLEAR instead of `CORRESPONDING #( ...
   EXCEPT )`; READ TABLE ... ASSIGNING instead of `CLEAR itab[ ... ]-comp`;
@@ -1463,12 +1464,25 @@ break one of those four.
   of `INSERT dbtab FROM @( VALUE #( ... ) )` (the output looks downported and
   does not compile); no `@` on cursor statements; and an explicit declaration
   where an inline one has a void type - the downport rule reports nothing
-  there, and v702 `check_syntax` only says `"DATA" not found`. The cast for
+  there, and v702 `check_syntax` only says `"DATA" not found`. Two more change the
+  code without a word (found transpiling the addons, 2026-11-03): a table
+  expression behind a guard in an `AND`/`OR` chain (`IF n > 0 AND itab[ n ]
+  = x`) is read before the IF, guard or not - write `VALUE #( itab[ n ]
+  OPTIONAL )` or a nested IF; and `CONV #( )` at a generic parameter (`TYPE
+  clike`) is declared `TYPE undefined` - write `CONV string( )`. The cast for
   `CX_SY_ITAB_LINE_NOT_FOUND` the `syfixes` script patches is upstream already
   (abaplint/abaplint#3735, #3240), and `syfixes` only runs when the `--fix` call
   before it may fail: `(abaplint --fix ... || true) && npm run syfixes`.
+  Fixed in abaplint main after 2.120.92: `IS INSTANCE OF`
+  (abaplint/abaplint#4507), `FROM @( VALUE #( ... ) )` (#4508), WHERE with
+  `UP TO` (#4509), the guarded table expression (#4512), `SELECT SINGLE FROM
+  ... FIELDS` (#4516), the void inline declaration (#4517), `CREATE DATA ...
+  WITH EMPTY KEY` (#4519), the cursor `@` (#4520) and MOVE-CORRESPONDING
+  between tables (#4515); the other three are filed (#4513, #4514, #4518).
+  Keep writing all of them the 7.02 way until the pinned `@abaplint/cli` is a
+  release that has the fix.
 
-**Backlog:** abaplint · abaplint-downport-select-up-to, abaplint-downport-select-fields, abaplint-downport-is-instance-of, abaplint-downport-move-corresponding-tables, abaplint-downport-corresponding-except, abaplint-downport-clear-table-expression, abaplint-downport-create-data-empty-key, abaplint-downport-insert-host-expression, abaplint-downport-cursor-host-variables, abaplint-downport-void-inline-silent
+**Backlog:** abaplint · abaplint-downport-corresponding-except, abaplint-downport-clear-table-expression, abaplint-downport-conv-generic-parameter
 
 ## 5. Runtime — green here, wrong there
 
