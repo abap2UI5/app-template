@@ -8,6 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +16,7 @@ import {
   parseVersion, cmpVersion, sameMinor, parseJsonc,
   checkNode, checkInstalled, checkSameMinor, checkChromium, checkPin, checkActionPin,
   checkSidecar, sourceFolder, checkLintConfig, checkExtension, checkCompat, checkWatch, summarise,
+  listClasses,
 } from '../doctor.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -238,4 +240,15 @@ test('doctor: runs on this repository and prints one status line per check', () 
     assert.equal(code, 1, out);
     assert.match(out, /npm ci/);
   }
+});
+
+test('doctor: the classes of a subpackage (a subfolder under FOLDER_LOGIC PREFIX) are found too', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'a2ui5-doctor-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dir, 'sub', 'deeper'), { recursive: true });
+  for (const f of ['zcl_top.clas.abap', 'zcl_top.clas.xml', 'sub/zcl_sub.clas.abap', 'sub/deeper/zcl_deep.clas.abap', 'sub/package.devc.xml']) {
+    fs.writeFileSync(path.join(dir, f), '');
+  }
+  assert.deepEqual(listClasses(dir), ['sub/deeper/zcl_deep.clas.abap', 'sub/zcl_sub.clas.abap', 'zcl_top.clas.abap']);
+  assert.deepEqual(listClasses(path.join(dir, 'missing')), []);
 });

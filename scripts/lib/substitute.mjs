@@ -29,16 +29,33 @@ export function applyClass(text, oldClass, newClass) {
     .split(oldClass.toUpperCase()).join(newClass.toUpperCase());
 }
 
+/** A value as XML element text, escaped the way abapGit serializes it - an
+ *  apostrophe included, as `&apos;`, or the sidecar comes back different on
+ *  the first pull. */
+export function xmlEscape(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 /** One XML element's text — `<CTEXT>abap2UI5 app</CTEXT>` — replaced in place.
- *  The first occurrence only: the sidecars carry each element once. */
+ *  The first occurrence only: the sidecars carry each element once. The value
+ *  is escaped, and passed through a function so a `$&` in it stays literal. */
 export function applyElement(text, element, value) {
-  return text.replace(new RegExp(`<${element}>[^<]*</${element}>`), `<${element}>${value}</${element}>`);
+  const replacement = `<${element}>${xmlEscape(value)}</${element}>`;
+  return text.replace(new RegExp(`<${element}>[^<]*</${element}>`), () => replacement);
 }
 
 /** One top-level JSON string key — `"name": "abap2ui5-app"` — replaced in
- *  place, as text, so the file's formatting survives. */
+ *  place, as text, so the file's formatting survives. The value is written as
+ *  a JSON string (quotes and backslashes escaped), through a function so a
+ *  `$&` in it stays literal. */
 export function applyJsonKey(text, key, value) {
-  return text.replace(new RegExp(`"${key}":\\s*"[^"]*"`), `"${key}": "${value}"`);
+  const replacement = `"${key}": ${JSON.stringify(String(value))}`;
+  return text.replace(new RegExp(`"${key}":\\s*"[^"]*"`), () => replacement);
 }
 
 /** The class is in the FILE names too: `src/zcl_app_001.clas.abap` becomes

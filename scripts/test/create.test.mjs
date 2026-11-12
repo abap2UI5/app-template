@@ -157,3 +157,16 @@ test('create: the package is self-contained and ships what index.mjs imports', (
     'create/substitute.mjs differs from scripts/lib/substitute.mjs - run node scripts/sync-create.mjs');
   assert.equal(run([path.join(ROOT, 'scripts/sync-create.mjs'), '--check']).code, 0);
 });
+
+// A package text or repo name is user input: it lands in a .xml sidecar and a
+// package.json as text. Unescaped, `R&D` breaks the XML, a `"` breaks the
+// JSON, and `$&` was read as a String.replace pattern and pasted the match in.
+test('substitute: values are escaped for XML and JSON, and never read as a replace pattern', async () => {
+  const { applyElement, applyJsonKey } = await import(pathToFileURL(path.join(ROOT, 'scripts/lib/substitute.mjs')).href);
+  assert.equal(
+    applyElement('<a><CTEXT>abap2UI5 app</CTEXT></a>', 'CTEXT', `R&D <"Tom's"> $& $1`),
+    '<a><CTEXT>R&amp;D &lt;&quot;Tom&apos;s&quot;&gt; $&amp; $1</CTEXT></a>');
+  const json = applyJsonKey('{\n  "name": "abap2ui5-app",\n  "x": 1\n}\n', 'name', 'a"b\\c $& $`');
+  assert.equal(json, '{\n  "name": "a\\"b\\\\c $& $`",\n  "x": 1\n}\n');
+  assert.equal(JSON.parse(json).name, 'a"b\\c $& $`');
+});

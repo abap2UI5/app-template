@@ -211,8 +211,12 @@ async function main() {
     if (STRICT) problems.push(note);
     else if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Framework pin::${note}`);
     else console.log(`  note: ${note}`);
-  } else {
+  } else if (distinct.length === 1) {
     console.log(`newest release of abap2UI5/abap2UI5: ${latest} - the pin is current`);
+  } else {
+    /* the places do not name one release (reported in `problems`), so there is no pin to
+     * call current */
+    console.log(`newest release of abap2UI5/abap2UI5: ${latest} - the places do not name one release, see below`);
   }
 
   if (problems.length) {
