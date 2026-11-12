@@ -319,6 +319,17 @@ function listExtensions() {
   return r.stdout || '';
 }
 
+/** Every *.clas.abap under srcDir, subfolders included: with FOLDER_LOGIC
+ *  PREFIX a subpackage is a subfolder, and its classes need their sidecars as
+ *  much as the top level's do. Relative to srcDir, with forward slashes. */
+export function listClasses(srcDir) {
+  if (!fs.existsSync(srcDir)) return [];
+  return fs.readdirSync(srcDir, { recursive: true })
+    .map((f) => String(f).split(path.sep).join('/'))
+    .filter((f) => f.endsWith('.clas.abap'))
+    .sort();
+}
+
 async function main() {
   const results = [];
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
@@ -345,7 +356,7 @@ async function main() {
 
   const folder = sourceFolder(readIf('.abapgit.xml'));
   const srcDir = path.join(ROOT, folder);
-  const classes = fs.existsSync(srcDir) ? fs.readdirSync(srcDir).filter((f) => f.endsWith('.clas.abap')).sort() : [];
+  const classes = listClasses(srcDir);
   if (!classes.length) results.push(warn(`${folder}/ holds no *.clas.abap`, `every app is one ZCL_* class in ${folder}/ (.abapgit.xml's STARTING_FOLDER) with its .clas.xml sidecar - the template ships one starter class there`));
   for (const abap of classes) {
     const base = abap.slice(0, -'.clas.abap'.length);
