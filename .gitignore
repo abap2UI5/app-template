@@ -4,3 +4,10 @@ node_modules/
 
 # the render gate's browser, when playwright is told to keep it in-project
 .playwright/
+
+# node .github/scripts/rename.mjs: the renamed tree, the framework clone it
+# renames along, its config - never committed
+.github/out/
+.github/abaplint/output/
+.github/abaplint/rename-deps/
+.github/abaplint/rename_run.json

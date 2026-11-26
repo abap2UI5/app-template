@@ -76,7 +76,7 @@ have (it skips it and says so), only adding to your `package.json` and
    GitHub is the first).
 2. Install the [abap2UI5 framework](https://github.com/abap2UI5/abap2UI5) in
    your system via [abapGit](https://abapgit.org/), then install this repo
-   the same way. The starter app needs framework **1.150.0 or newer** — that
+   the same way. The starter app needs framework **1.151.0 or newer** — that
    is the release the local gates lint against, pinned in `abaplint.jsonc`.
 3. Create an ICF endpoint for the framework's HTTP handler (see the
    [documentation](https://abap2ui5.github.io/docs/)) and open
@@ -118,6 +118,27 @@ Three decisions the script deliberately leaves to you:
 - **The ABAP package.** `src/package.devc.xml` creates one package. Whether
   that is `$TMP` or a transportable package is decided when abapGit first
   pulls the repository into your system, not here.
+
+Two more things every abap2UI5 repository can do, by hand, when your system
+needs them:
+
+- **NetWeaver 7.02.** `node scripts/check-702.mjs` downports a copy of `src/`
+  with `abaplint --fix` against the framework's downported release
+  (`.github/abaplint/abap_702.jsonc`) and lints it at v702 - 0 issues means
+  your app installs there next to abap2UI5's `-702` release. To deliver it,
+  run `npx abaplint --fix .github/abaplint/abap_702.jsonc` on a copy, never
+  on the tree you commit.
+- **A renamed abap2UI5.** When the framework is installed renamed - a
+  customer name such as `ZMYUI5` or a namespace such as `/CA2UI5/`, its
+  `build-rename` workflow - your app has to follow it:
+  `node .github/scripts/rename.mjs --name /CA2UI5/ --out build/renamed`
+  writes `src/` renamed into `build/renamed` - every `z2ui5_` reference
+  follows the framework, and your own `zcl_`/`zcx_`/`zif_` objects move into
+  the same namespace (`/ca2ui5/cl_app_001`; `package.json`
+  `config.renameOwn`). abap2UI5 is renamed along to check the result, and
+  every new name has to fit its object type (a class 30 characters). Not to
+  be confused with `scripts/rename.mjs` above, which personalises the
+  template.
 
 ## Validate locally
 
