@@ -43,8 +43,8 @@
  *                       root)
  *   renameOwn           a regular expression for the repository's own objects
  *                       that are not z2ui5_ ones, the part to keep in its one
- *                       group: "^z((?:cl|cx|if)_.*)$" renames zcl_app_001 to
- *                       zmyui5_cl_app_001 or /ca2ui5/cl_app_001
+ *                       group: "^z((?:cl|cx|if)_.*)$" renames zcl_my_app to
+ *                       zmyui5_cl_my_app or /ca2ui5/cl_my_app
  *   renameSkip          { "<folder or file below the root>": "<why>" } - what
  *                       abaplint cannot rename yet (an object type without a
  *                       renamer, code that needs one): neither renamed nor
