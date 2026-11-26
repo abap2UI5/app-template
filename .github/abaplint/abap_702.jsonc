@@ -1,0 +1,46 @@
+// The 7.02 downport of the app classes: `node scripts/check-702.mjs` copies
+// src/ into a temporary folder, downports the copy with `abaplint --fix`
+// against this config and lints the result at v702 - 0 issues means the app
+// installs on NetWeaver 7.02 next to abap2UI5's downported release. Never run
+// `abaplint --fix` with it on the tree you commit: it rewrites every file.
+{
+  "global": {
+    "files": "/../../src/**/*.*"
+  },
+  "dependencies": [
+    {
+      // the framework's downported release - abap2UI5 publishes every release
+      // twice, `<n>` and `<n>-702`; keep it on the release abaplint.jsonc
+      // pins
+      "url": "https://github.com/abap2UI5/abap2UI5",
+      "branch": "1.151.0-702",
+      "folder": "/abap2UI5",
+      "files": "/src/**/*.*"
+    }
+  ],
+  "syntax": {
+    "version": "v702",
+    // as abaplint.jsonc: your own namespace fully checked, unknown
+    // SAP-standard objects void
+    "errorNamespace": "^(Z|Y)"
+  },
+  "rules": {
+    "downport": true,
+    "definitions_top": true,
+    "begin_end_names": true,
+    "check_include": true,
+    "check_syntax": true,
+    "global_class": true,
+    "implement_methods": true,
+    // the 7.02 editor stores 255 characters a line and cuts the rest on
+    // import - and the downport is what makes such lines
+    "line_length": {
+      "length": 255
+    },
+    "method_implemented_twice": true,
+    "parser_error": true,
+    "superclass_final": true,
+    "unknown_types": true,
+    "xml_consistency": true
+  }
+}

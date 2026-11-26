@@ -81,3 +81,24 @@ jobs:
       # matching turns its gate into one that passes by checking nothing.
       - name: Script unit tests
         run: node --test scripts/test/*.test.mjs
+
+  # The two things every repository of the abap2UI5 ecosystem has to do with
+  # its ABAP, here for the starter app: downport it to 7.02 (a copy, against
+  # the framework's downported release) and rename it into another namespace
+  # (the framework renamed along). Both files ship with a project, which runs
+  # them by hand - this job keeps them working on the template. They need the
+  # gates' npm install, which the job above does without.
+  portability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: 7.02 downport (expect 0 issues)
+        run: node scripts/check-702.mjs
+      - name: Namespace rename (the longest name abap2UI5 allows)
+        run: node .github/scripts/rename.mjs

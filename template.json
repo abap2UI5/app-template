@@ -23,7 +23,10 @@
       ".claude/skills/build-an-app/SKILL.md",
       ".claude/skills/view-chain-layout/SKILL.md",
       ".claude/skills/abap-check/SKILL.md",
-      ".claude/skills/ui5-check/SKILL.md"
+      ".claude/skills/ui5-check/SKILL.md",
+      ".github/abaplint/abap_702.jsonc",
+      "scripts/check-702.mjs",
+      ".github/scripts/rename.mjs"
     ],
     "named": [
       ".abapgit.xml",
@@ -111,7 +114,10 @@
       ".gitattributes": "normalises line endings for the whole repository; in an existing one that rewrites files its history holds in another form - a decision about the repository, not part of an agent setup",
       ".github/dependabot.yml": "the update policy for every npm package and action of the whole repository, which an existing project has already decided (its own file, Renovate, or none); check.yml's SHA pins work without it",
       ".devcontainer/devcontainer.json": "an editor environment, not agent or gate setup - and a project with a container has its own",
-      ".vscode/extensions.json": "editor recommendations, not agent or gate setup - and a project with a .vscode/ has its own"
+      ".vscode/extensions.json": "editor recommendations, not agent or gate setup - and a project with a .vscode/ has its own",
+      ".github/abaplint/abap_702.jsonc": "the 7.02 downport config of scripts/check-702.mjs, which a project runs by hand when it targets NetWeaver 7.02 - its files glob is src/, and an existing project decides its own release targets",
+      "scripts/check-702.mjs": "the 7.02 downport check, run by hand (`node scripts/check-702.mjs`) and copying src/ - no package.json script or workflow invokes it, so an existing project that wants it copies it with the config above",
+      ".github/scripts/rename.mjs": "abap2UI5's namespace rename, run by hand (`node .github/scripts/rename.mjs --name <name> --out <dir>`) when the framework is installed renamed; it reads src/ and abaplint.jsonc's framework pin and package.json config.renameOwn, which the agent-setup merge does not carry"
     },
     "merge": {
       "package.json": {

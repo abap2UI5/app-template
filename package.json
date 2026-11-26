@@ -25,5 +25,8 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "config": {
+    "renameOwn": "^z((?:cl|cx|if)_.*)$"
   }
 }
