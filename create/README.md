@@ -55,16 +55,17 @@ package:
 
 | File | Why |
 | --- | --- |
-| `AGENTS.md` | The app-building reference an agent reads before writing an app class. Its first section ("This repository") describes a project made from the template - rewrite it for yours, keep the rest |
+| `AGENTS.md`, `docs/project.md` | What an agent reads before writing an app class: a page about the repository, then the essentials of the framework's app-building guide (generated, between two marker lines) and where the whole guide is. The first part ("This repository", with `docs/project.md` as its long form) describes a project made from the template - rewrite it for yours, keep the rest |
 | `CLAUDE.md` | Points Claude Code at `AGENTS.md` |
 | `.claude/settings.json` | The permission allowlist, so an agent runs the gates without a prompt for each |
-| `.claude/skills/*/SKILL.md` | The framework's four skills: `build-an-app`, `view-chain-layout`, `abap-check`, `ui5-check` |
+| `.claude/skills/*/` | The framework's four skills: `build-an-app`, `view-chain-layout`, `abap-check`, `ui5-check` - each a short `SKILL.md` and its long sections under `references/`. `build-an-app/references/building-apps.md` is the app-building guide, whole |
 | `.mcp.json` | The abap2UI5 MCP server, registered for Claude Code |
 | `abaplint.jsonc`, `abap2ui5lint.jsonc` | The two gates' configs, the framework pinned for dependency resolution |
 | `package.json` | **Merged**: the gates as devDependencies, the `npm run check*` scripts, `engines` |
 | `.gitignore` | **Merged**: `node_modules/` and `.playwright/` |
 | `.github/workflows/check.yml` | CI: both gates and the ABAP Unit job on every pull request |
 | `scripts/check-pin.mjs`, `scripts/doctor.mjs` | `npm run check:pin` (check.yml's first step) and `npm run doctor` |
+| `scripts/add-addon.mjs`, `scripts/addons.json` | `npm run add-addon -- <repo>`: registers an addon of [abap2UI5-addons](https://abap2ui5-addons.github.io/) and what it depends on in `abaplint.jsonc`, from the snapshot of the addon catalogue next to it |
 | `.nvmrc` | The Node line the gates need |
 
 What it never does:

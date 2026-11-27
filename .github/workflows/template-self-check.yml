@@ -9,8 +9,9 @@
 name: template-self-check
 
 # The two mirror gates below are the ones that depend on ANOTHER repository:
-# abap2UI5 owns docs/agents/building-apps.md (the half of AGENTS.md below
-# "1. The model in one paragraph") and the four skills under .claude/skills/,
+# abap2UI5 owns docs/agents/building-apps.md (here the guide file under the
+# build-an-app skill, and its essentials in AGENTS.md) and the four skills
+# under .claude/skills/,
 # so the drift is created by a commit over there. On a push or a pull request
 # here they answer "does this change leave the mirrors intact". The question
 # no commit here asks - "is the mirror still upstream's text right now" - used
@@ -53,16 +54,19 @@ jobs:
       - name: Template description
         run: node scripts/check-template.mjs
 
-      # Everything in AGENTS.md from "1. The model in one paragraph" down is
-      # abap2UI5's app-building guide, generated into that file from the guide
-      # plus the declared deviations. This fails when the two have parted - and
-      # says so and passes when the guide cannot be reached at all.
+      # .claude/skills/build-an-app/references/building-apps.md is abap2UI5's
+      # app-building guide, generated from the guide plus the declared
+      # deviations, and the block between the guide-essentials marker lines of
+      # AGENTS.md is the passages that guide marks, cut out of it. This fails
+      # when either has parted from the guide - and says so and passes when
+      # the guide cannot be reached at all.
       - name: App guide mirror
         run: node scripts/generate-agents.mjs --check
 
-      # The four agent skills under .claude/skills/ are generated from the
-      # framework's the same way, with their own declared deviations, and ship
-      # with every project. Same contract: fails on drift, says so and passes
+      # The four agent skills under .claude/skills/ - a short SKILL.md each
+      # and its references - are generated from the framework's skills/ the
+      # same way, with their own declared deviations, and ship with every
+      # project; template.json's lists of those files are checked with them. Same contract: fails on drift, says so and passes
       # when the framework is unreachable.
       #
       # Red on a pull request that touched neither mirror means abap2UI5 moved
@@ -71,6 +75,14 @@ jobs:
       # tab if there is none yet, and rebase.
       - name: Agent skills mirror
         run: node scripts/generate-skills.mjs --check
+
+      # scripts/addons.json - what `npm run add-addon` knows about the addons -
+      # is a snapshot of the addon catalogue. The catalogue half is compared
+      # here (a repository cutting a release tag must not turn this red; the
+      # daily sync carries that), and the run says so and passes when the
+      # catalogue is not reachable.
+      - name: Addon snapshot
+        run: node scripts/sync-addons.mjs --check
 
       # create/ (the `npm create abap2ui5-app` package) ships a byte-equal copy
       # of scripts/lib/substitute.mjs, the substitution code rename.mjs runs.

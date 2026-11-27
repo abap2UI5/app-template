@@ -23,16 +23,24 @@ AI agents.
   abaplint from this repo's `package-lock.json`, the view checks through the
   linter's own GitHub Action (`abap2UI5/linter`, SHA-pinned), which brings the
   UI5 runtime and the browser the render gate needs
-- **`AGENTS.md`** — the complete app-building reference for AI assistants,
-  plus a `.claude/settings.json` permission allowlist so autonomous sessions
-  run the gates without prompts
+- **`AGENTS.md`** — what an AI assistant reads first, kept to a page and a
+  half: the repository, the gates, and the essentials of building an app, cut
+  out of the framework's guide. Plus a `.claude/settings.json` permission
+  allowlist so autonomous sessions run the gates without prompts
 - **`.claude/skills/`** — the framework's four agent skills (`build-an-app`,
   `view-chain-layout`, `abap-check`, `ui5-check`), mirrored here so an agent
   in your project loads the catalogue of what a green CI does not catch
-  without a framework checkout
+  without a framework checkout — each a short `SKILL.md` with its long
+  sections as files under `references/`, read one at a time. The complete
+  app-building guide is one of them:
+  `.claude/skills/build-an-app/references/building-apps.md`
 - **`npm run doctor`** — an offline check of the machine and the repository:
   Node, both gates, a Chromium the render gate can launch, the pins, every
   `.clas.xml` sidecar, the lint config — one line per check with the remedy
+- **`npm run add-addon -- <repo>`** — an app that calls a class of an
+  [addon](https://abap2ui5-addons.github.io/) (popups, layout-management,
+  range-filter, …) needs the lint gate to know the addon: this registers it,
+  and everything it depends on, in `abaplint.jsonc`
 - **`.mcp.json`, `.devcontainer/`, `.vscode/extensions.json`** — the abap2UI5
   MCP server registered for Claude Code, a dev container with everything
   installed on create, and the editor's extension recommendations
@@ -62,7 +70,7 @@ as much there. Run, in that project's directory:
 npm create abap2ui5-app@latest -- --agent-setup
 ```
 
-It adds `AGENTS.md`, `CLAUDE.md`, `.claude/` (the skills and the permission
+It adds `AGENTS.md`, `docs/project.md`, `CLAUDE.md`, `.claude/` (the skills and the permission
 allowlist), `.mcp.json`, the two gates' configs, the `npm run check*` scripts
 and `check.yml` — never touching your classes, never overwriting a file you
 have (it skips it and says so), only adding to your `package.json` and
@@ -157,6 +165,7 @@ npm run watch:render            # the watch with the render gate on, one warm br
 npm run test:unit               # the ABAP Unit tests, run in the transpiled backend without a system
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release named in one place only
+npm run add-addon -- popups     # register an addon (and what it needs) with the lint gate
 npm run doctor                  # when something above fails: what is missing, and the command that fixes it
 ```
 
@@ -165,7 +174,8 @@ npm run doctor                  # when something above fails: what is missing, a
 where the render gate will look (`npx playwright install chromium` otherwise),
 the framework pin (through `check-pin`), the linter Action pin in `check.yml`
 against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`,
-`WITH_UNIT_TESTS` for a class with tests), `abap2ui5lint.jsonc`, and — never
+`WITH_UNIT_TESTS` for a class with tests), `abap2ui5lint.jsonc`, an addon
+class the app names that `abaplint.jsonc` does not resolve, and — never
 failing — whether VS Code has the abap2UI5 extension, whether the pinned
 framework satisfies the linter's compatibility record, when it ships one, and
 whether the installed linter has `--watch`.
@@ -182,6 +192,31 @@ framework release in `abaplint.jsonc` is a tag inside an abaplint dependency,
 which Dependabot cannot read, and the same number is repeated in this README
 and in `AGENTS.md`. It fails when the three disagree, and tells you (without
 failing) when a newer framework release is out.
+
+### Addons
+
+The [addons](https://abap2ui5-addons.github.io/) — finished popups, saved
+table layouts, selection screens, locks — are repositories of their own, and
+`abaplint.jsonc` resolves the framework alone. So the first call to
+`z2ui5_cl_popup_to_confirm=>factory( )` ends in *Class
+z2ui5_cl_popup_to_confirm not found*, and `npm run doctor` says why:
+
+```bash
+npm run add-addon -- popups          # registers layout-management, then popups
+npm run add-addon -- --list          # the addons, what each is for and needs
+```
+
+`add-addon` writes one `dependencies` entry per addon (dependencies of the
+addon first, comments and formatting of the file untouched, the 7.02 config
+`.github/abaplint/abap_702.jsonc` kept in step) and prints the abapGit install
+order — on a system every addon is a separate install next to abap2UI5. An
+addon that carries a release tag equal to the pinned framework release is
+pinned to it; one that does not follows its default branch, and the output
+says **NOT pinned** — abaplint's `"branch"` goes to `git clone -b`, which
+takes a branch or a tag and never a commit. The facts come from
+`scripts/addons.json`, a snapshot of the catalogue's
+[`addons.json`](https://abap2ui5-addons.github.io/addons.json) that the
+template refreshes daily (`node scripts/sync-addons.mjs`, template-only).
 
 Settings (paths, UI5 floor, distribution, rule severities, fail level) live in
 `abap2ui5lint.jsonc`; every rule id is documented at
@@ -229,10 +264,12 @@ skips test includes, so `npm run check` stays the gate it is.
 A project made from this template is ready for an AI agent as it stands,
 with nothing to install for it:
 
-- **`AGENTS.md`** — the app-building reference, read by any agent that
-  follows the AGENTS.md convention (`CLAUDE.md` points Claude Code at it)
+- **`AGENTS.md`** — the briefing, read by any agent that follows the
+  AGENTS.md convention (`CLAUDE.md` points Claude Code at it): about 11 KB,
+  where it used to be 75 KB with the whole guide inlined. It says which file
+  to read for what
 - **`.claude/skills/`** — the framework's four skills, loaded by Claude Code
-  on demand
+  on demand, with the full guide as a reference of `build-an-app`
 - **`.mcp.json`** — the abap2UI5 MCP server, registered for Claude Code
 
 Working on abap2UI5 apps outside a project made from this template? The
@@ -245,7 +282,10 @@ framework repository also publishes a Claude Code plugin:
 
 ## Learn more
 
-- [AGENTS.md](AGENTS.md) — the complete app-building reference (also for humans)
+- [AGENTS.md](AGENTS.md) — the briefing, and
+  [the complete app-building guide](.claude/skills/build-an-app/references/building-apps.md)
+  (also for humans); [docs/project.md](docs/project.md) — this repository's
+  files and gates in detail
 - [Documentation](https://abap2ui5.github.io/docs/) — the rendered docs site
 - [Samples](https://github.com/abap2UI5/samples) — curated example apps
   (bindings, events, popups, navigation)

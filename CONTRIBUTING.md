@@ -11,13 +11,14 @@ npx playwright install chromium         # the render gate needs a browser
 npm run check:all                       # what a project made from this gets: the pin, then both gates
 
 node scripts/check-template.mjs         # template.json still describes this repository
-node scripts/generate-agents.mjs --check # the mirrored half of AGENTS.md matches the guide
-node scripts/generate-skills.mjs --check # the four .claude/skills match the framework's
+node scripts/generate-agents.mjs --check # the guide file and the essentials in AGENTS.md match the guide
+node scripts/generate-skills.mjs --check # the four .claude/skills (SKILL.md + references) match the framework's
+node scripts/sync-addons.mjs --check    # scripts/addons.json matches the addon catalogue
 node scripts/sync-create.mjs --check    # create/ carries the current substitution code
 node --test scripts/test/*.test.mjs     # the scripts, and the claims they make about these files
 ```
 
-The last five need no install and run in seconds.
+The last six need no install and run in seconds.
 
 **Why the split.** The first block is the project's; the second is the
 template's. `package.json` and `.github/workflows/check.yml` are both handed
@@ -38,13 +39,27 @@ workflow calls, has to be handed out with it.
 
 ## The mirrors sync themselves
 
-Two things in this repository are abap2UI5's text, not ours: the half of
-`AGENTS.md` from "1. The model in one paragraph" down
-(`scripts/generate-agents.mjs`, from the framework's
-`docs/agents/building-apps.md`) and the four `.claude/skills/*/SKILL.md`
-(`scripts/generate-skills.mjs`, from the framework's `.claude/skills/`). They
-drift whenever abap2UI5 changes the guide or a skill, which no commit here
-triggers on.
+Two things in this repository are abap2UI5's text, not ours: the app-building
+guide - whole as `.claude/skills/build-an-app/references/building-apps.md`,
+and its essentials between the two `guide-essentials` marker lines of
+`AGENTS.md` (`scripts/generate-agents.mjs`, from the framework's
+`docs/agents/building-apps.md`) - and the four skills under `.claude/skills/`,
+each a short `SKILL.md` with its `references/`
+(`scripts/generate-skills.mjs`, from the framework's `skills/`, which also
+keeps `template.json`'s lists of those files). They drift whenever abap2UI5
+changes the guide or a skill, which no commit here triggers on.
+
+`AGENTS.md` outside the two marker lines, and `docs/project.md`, are this
+repository's own and written by hand. Keep `AGENTS.md` short - it is what
+every agent reads before anything else, and a unit test fails when it grows
+past 16 KB; what needs a paragraph goes to `docs/project.md`.
+
+A third file is a snapshot of somebody else's facts: `scripts/addons.json`,
+what `npm run add-addon` knows about the addons - written by
+`scripts/sync-addons.mjs` from the addon catalogue
+(abap2UI5-addons/abap2UI5-addons.github.io) and from each addon's branches and
+tags. Its `--check` compares the catalogue half only, so a repository cutting
+a release tag does not turn a pull request here red.
 
 `.github/workflows/sync-mirrors.yml` carries that drift. Daily (and from the
 Actions tab) it clones abap2UI5 `main` next to the checkout, runs both
@@ -99,12 +114,12 @@ a divergence with nothing saying so. That is now checked.
 | --- | --- |
 | `scripts/check-pin.mjs` | **Ships.** The framework release is written in `abaplint.jsonc`, `README.md` and `AGENTS.md` and no tool moves it; this fails when they disagree, and reports a newer release as a notice. `README.md` is marked optional, because a project writes its own |
 | `scripts/check-template.mjs` | `template.json` has to describe this repository, and the shared set has to be closed under what it invokes |
-| `scripts/generate-agents.mjs` | Writes the mirrored half of `AGENTS.md` (everything below "1. The model in one paragraph") from the framework's app-building guide, and fails when the two have parted. Run daily by `sync-mirrors.yml`, see above |
-| `scripts/app-guide-deviations.mjs` | The sentences the mirror is expected to say differently. **Not this repository's file**: it is abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here and held byte-equal by that repository's `npm run check:shared` |
+| `scripts/generate-agents.mjs` | Writes the guide file under the build-an-app skill and the essentials block of `AGENTS.md` from the framework's app-building guide, and fails when either has parted from it. Run daily by `sync-mirrors.yml`, see above |
+| `scripts/app-guide-deviations.mjs` | The sentences the mirror is expected to say differently, and the code that cuts the essentials out of the guide. **Not this repository's file**: it is abap2UI5's `.github/shared/app-guide-deviations.mjs`, copied here and held byte-equal by that repository's `npm run check:shared` |
 | `scripts/rename.mjs` | `node scripts/rename.mjs --class zcl_my_app` — makes the template yours, by executing `template.json` |
 | `scripts/lib/substitute.mjs` | The substitutions `template.json` can ask for, as pure functions — what `rename.mjs` and the `create` package both execute. Edit it here; `sync-create.mjs` carries it over |
 | `scripts/sync-create.mjs` | Copies `scripts/lib/substitute.mjs` to `create/substitute.mjs` (the published package has to be self-contained); `--check` fails when the copy differs |
-| `scripts/generate-skills.mjs` | Writes `.claude/skills/*/SKILL.md` from the framework's four skills, with a declared list of deviations per skill; `--check` fails on drift and passes with a notice when the framework is unreachable. Run daily by `sync-mirrors.yml`, see above |
+| `scripts/generate-skills.mjs` | Writes `.claude/skills/*/SKILL.md` and `references/*.md` from the framework's four skills in their split form, with a declared list of deviations per file, and the entries for them in `template.json`; `--check` fails on drift and passes with a notice when the framework is unreachable. Run daily by `sync-mirrors.yml`, see above |
 | `scripts/check-702.mjs` | **Ships.** `node scripts/check-702.mjs` — the 7.02 downport of `src/` on a temporary copy, against `.github/abaplint/abap_702.jsonc` (**ships**, the framework's `-702` release - keep it on the release `abaplint.jsonc` pins). Run by the `portability` job of `template-self-check.yml` |
 | `.github/scripts/rename.mjs` | **Ships.** abap2UI5's namespace rename, the file every renameable repository of the ecosystem shares (change it there, in all of them): the app follows a renamed framework, its own objects move into the same namespace (`package.json` `config.renameOwn`). Without `--name` the check with the longest name the framework allows, run by the `portability` job |
 | `scripts/doctor.mjs` | **Ships.** `npm run doctor` — the offline environment and repository check, one line per finding with its remedy. Its decisions are pure exported functions, tested in `scripts/test/doctor.test.mjs` |

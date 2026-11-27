@@ -1,189 +1,65 @@
 # AGENTS.md — abap2UI5 app template
 
 Briefing for AI assistants (and humans) developing **this abap2UI5 app
-repository**. It was created from
-[abap2UI5/app-template](https://github.com/abap2UI5/app-template) and comes
-with the validation gates preconfigured.
+repository**, created from
+[abap2UI5/app-template](https://github.com/abap2UI5/app-template) with the
+validation gates preconfigured. Two parts: this repository (yours — rewrite
+it, add your own rules), then the essentials of building an app (generated).
 
 ## This repository
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | The app classes (abapGit project, `STARTING_FOLDER=/src/`, `FOLDER_LOGIC=PREFIX`) — one class per app, named `ZCL_*` |
-| `src/zcl_app_001.clas.abap` | The starter app — rename/copy it for your first real app (keep the `.clas.xml` sidecar's `CLSNAME` in sync) |
-| `src/zcl_app_001.clas.testclasses.abap` | ABAP Unit tests for the starter app: a test double for `z2ui5_if_client` drives `main( )` through the first start, a `SAVE` event and a navigated roundtrip. Runs on the system (ADT `Ctrl+Shift+F10`); the local gates check it statically — see "Testing an app" below |
-| `package.json` | The two gates as devDependencies (`@abaplint/cli`, `@abap2ui5/linter` + its render runtime `@abap2ui5/linter-render`, on the same minor line — they are cut from one tag) and the `npm run check*` scripts. `package-lock.json` is committed, so CI and your machine run the same versions |
-| `package-lock.json` | Committed on purpose: `npm ci` reads it, so the gate versions CI runs are the ones you ran locally |
-| `abaplint.jsonc` | abaplint config; abaplint clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.151.0` (`"branch"` — abaplint passes it to `git clone --branch`, which takes a tag; there is no `"tag"` key). That tag is the framework floor: `1.142.0` has neither `z2ui5_cl_ui5_view_builder` nor `client->get_event( )`, both of which the starter class uses. Bump the pin when you need a newer API, and run `npm run check` |
-| `abap2ui5lint.jsonc` | [abap2UI5-linter](https://github.com/abap2UI5/linter) config (paths, UI5 floor, distribution, rule severities, fail level) — CLI flags override it |
-| `.github/workflows/check.yml` | CI: the framework pin, then abaplint from the lockfile, then the abap2UI5-linter through its own action (`abap2UI5/linter`, SHA-pinned) for the static gate + headless render of every view |
-| `scripts/check-702.mjs`, `.github/abaplint/abap_702.jsonc` | `node scripts/check-702.mjs` — does the app downport to NetWeaver 7.02? A temporary copy of `src/` downported with `abaplint --fix` against the framework's `-702` release and linted at v702; your tree is never touched |
-| `.github/scripts/rename.mjs` | abap2UI5's namespace rename, for a system where the framework is installed renamed: `node .github/scripts/rename.mjs --name /CA2UI5/ --out build/renamed` writes `src/` with every `z2ui5_` reference renamed and your own `zcl_`/`zcx_`/`zif_` objects moved into the same namespace (`package.json` `config.renameOwn`); without `--name` it checks the longest name the framework allows. Not the template's `scripts/rename.mjs` |
-| `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in more than one place and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
-| `scripts/doctor.mjs` | `npm run doctor` — offline environment check, one line per finding with its remedy: Node version, both gates installed and on one minor line, a Chromium the render gate can launch, the framework pin, the linter Action pin against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`, `WITH_UNIT_TESTS`), `abap2ui5lint.jsonc`, the VS Code extension, the linter's compatibility record, whether the installed linter has `--watch`. Exit 1 only on FAIL |
-| `.claude/skills/` | Four agent skills mirrored from the framework — `build-an-app`, `view-chain-layout`, `abap-check`, `ui5-check` — loaded on demand by Claude Code and any agent that reads `SKILL.md` files. Generated (each file says so on its first line); "this repository" in their text is the framework's |
-| `.claude/settings.json`, `.mcp.json` | The permission allowlist for autonomous sessions, and the abap2UI5 MCP server registered for Claude Code (`npx --yes @abap2ui5/mcp-server`). The VS Code extension registers the same server for Copilot itself |
-| `.devcontainer/`, `.vscode/extensions.json` | A dev container (Node 22, both gates and Chromium installed on create, the abap2UI5, abaplint and Claude Code extensions) and the editor's extension recommendations |
+| `src/` | The app classes, one `ZCL_*` class per app (abapGit, `STARTING_FOLDER=/src/`). `zcl_app_001` is the starter app with its ABAP Unit include — copy it for a new app |
+| `abaplint.jsonc` | Gate 1. Clones the abap2UI5 framework for dependency resolution, pinned to release tag `1.151.0` (key `"branch"`); `npm run check:pin` holds the places that name it to one number |
+| `abap2ui5lint.jsonc` | Gate 2, the [abap2UI5-linter](https://github.com/abap2UI5/linter): every view checked statically and rendered headless |
+| `.claude/skills/` | Four skills, loaded on demand: `build-an-app`, `view-chain-layout`, `abap-check`, `ui5-check` — a short `SKILL.md` each, long sections under `references/` |
+| `.claude/skills/build-an-app/references/building-apps.md` | **The full app-building guide** — the one copy; its essentials are below |
+| `docs/project.md` | This section in detail: every file, the gates, addons, testing, the 7.02 and rename scripts |
 
 ## Build & verify — run before every commit
 
 ```bash
-npm ci                          # once - installs both gates from the lockfile
-npx playwright install chromium # once - only the render gate needs a browser
-
-npm run doctor                  # is this machine able to run the gates? one line per check, with the remedy
-
+npm ci                          # once - both gates, from the lockfile
+npx playwright install chromium # once - the render gate needs a browser
 npm run check                   # abaplint + linter, expect 0 issues
-npm run check:abap2ui5:fast     # fast loop: linter without the render gate
-npm run watch                   # the fast loop, again on every save - Ctrl+C ends it
-npm run watch:render            # the same with the render gate, one warm browser across the runs
-npm run test:unit               # the ABAP Unit tests in the transpiled backend - no system (see Testing an app)
+npm run check:abap2ui5:fast     # fast loop: the linter without the render gate
 npm run fix                     # apply the linter's mechanical corrections
-npm run check:pin               # the framework release this repo names, in one place
-npm run check:all               # everything CI runs: the pin, then both gates
-npm test                        # the same as `npm run check:all`
+npm run test:unit               # the ABAP Unit tests, transpiled - no system
+npm run check:all               # what CI runs: the pin, then both gates
+npm run doctor                  # a gate failed oddly? one line per cause, with the remedy
+npm run add-addon -- popups     # the app calls an addon class: register the addon
 ```
 
-When a gate fails in a way that names a symptom rather than a cause — a
-syntax error inside `node_modules` (old Node), "browser not found" (no
-Chromium), a rule CI has and your run does not (Action pin and devDependency
-on different minor lines) — `npm run doctor` says which, and what to run. It
-is offline and takes a second.
+- A gate that names a symptom, not a cause — a syntax error inside
+  `node_modules`, "browser not found", "Class z2ui5_cl_popup_... not found" —
+  is what `npm run doctor` explains. It is offline and takes a second.
+- Every `.clas.abap` needs its `.clas.xml` sidecar: UTF-8 **with BOM**, LF,
+  `CLSNAME` equal to the file name — copy an existing one. Class names are
+  `ZCL_*`/`ZCX_*`. Everything in English.
+- An addon ([abap2UI5-addons](https://abap2ui5-addons.github.io/)) is a
+  separate abapGit install and unknown to the lint gate until
+  `npm run add-addon -- <repo>` registered it; `-- --list` shows them all.
+- Without a system the gates are all there is: say which ran. Deploy with
+  [abapGit](https://abapgit.org/), start with `<endpoint>?app_start=zcl_app_001`.
 
-`npm run watch` is `abap2ui5lint --watch --no-render`: the static check once,
-then again on every save under `src/` (and on an edit to
-`abap2ui5lint.jsonc`, which is read again), the report on stdout and a
-separator naming the changed file on stderr; `npm run watch:render` is the
-same loop with the render gate on, keeping one warm browser across the runs
-instead of launching one per run. A watch never exits 1 - it is the loop for
-a developer whose editor has no linter in it (Eclipse ADT, with abapGit
-pulling the classes into this checkout: save, pull, read), not a gate; it
-refuses `--fix`, `--screenshot` and the JSON/SARIF outputs, so `npm run fix`
-stays a separate step. VS Code users have the extension's live check instead.
-The flag arrived with `@abap2ui5/linter` 0.7.0; on an older linter both
-scripts print its `unknown option '--watch'` and exit 2 (`npm run doctor` says
-whether the installed linter has it).
+## What to read when
 
-`npm run check:all` is the local equivalent of the CI job — a green run of it
-means CI passes. (`npm run check` is the two gates alone and skips the pin,
-which is why the two scripts exist separately.)
+| Doing | Read |
+| --- | --- |
+| Writing or changing an app class | the essentials below, then the guide's section for the topic; the `build-an-app` skill is the checklist |
+| Laying out a view chain | the `view-chain-layout` skill, then `npm run fix` |
+| Finishing a change under `src/` | `abap-check`: its `SKILL.md`, then references 1 and 2 |
+| Writing or reviewing a view | `ui5-check`: its `SKILL.md`, then reference 1 |
+| A gate, the pin, an addon, a test, 7.02, a renamed framework | `docs/project.md` |
 
-Both gates run offline from any SAP system (abaplint clones the framework on
-first use, so it needs network). Deploy to a system via
-[abapGit](https://abapgit.org/) and start an app with
-`<icf-endpoint>?app_start=zcl_app_001`.
+<!-- guide-essentials:begin - GENERATED from abap2UI5's docs/agents/building-apps.md by scripts/generate-agents.mjs in abap2UI5/app-template. Do not edit between this line and guide-essentials:end; put your own rules above. -->
 
-While writing, the
-[VS Code extension](https://github.com/abap2UI5/vscode-extension) surfaces the
-same linter findings as editor diagnostics with quick fixes, and
-[mcp-server](https://github.com/abap2UI5/mcp-server) gives an MCP-capable agent the
-deploy → build → run-headless-and-screenshot loop.
+## Building an app - the essentials
 
-Conventions: every `.clas.abap` needs its `.clas.xml` sidecar (UTF-8 **with
-BOM**, LF endings — copy an existing one; `abaplint.jsonc` enables `xml_bom`
-and `xml_consistency`, so a hand-edited sidecar fails the gate rather than the
-next abapGit pull; a class with a `.clas.testclasses.abap` include also
-carries `<WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>` after `<UNICODE>`, which is how
-abapGit serializes one); class names stay in `ZCL_*`/`ZCX_*`, which is both
-`object_naming` in `abaplint.jsonc` and the rule the rename step enforces; the
-whole repo is in English.
+What follows is cut out of the framework's app-building guide, word for word. The whole guide is ONE file, `.claude/skills/build-an-app/references/building-apps.md`; §N below is its section N. Read the section before you rely on a line here - and the whole of §2 to §5 before a first app.
 
-## Testing an app
-
-`src/zcl_app_001.clas.testclasses.abap` shows the shape: the app talks to the
-framework only through the `z2ui5_if_client` it is handed, so a local class
-with `INTERFACES z2ui5_if_client PARTIALLY IMPLEMENTED` — attributes deciding
-what `check_on_init( )` / `check_on_navigated( )` / `check_on_event( )` /
-`get_event( )` answer, tables recording what `view_display( )` and
-`message_toast_display( )` were given — is the whole test bed. The three tests
-are the three roundtrips every app has: the first call seeds the model and
-displays a view (`<Input`, `<List`), the `SAVE` event toasts `Saved, World`,
-and a navigated roundtrip re-displays without seeding again. The double
-implements every method the app CALLS - the lifecycle questions, the two
-things it does back, and the four the view code reaches for (`_bind`,
-`_event`, `_event_nav_app_leave`, `check_app_prev_stack`): on a system a
-`PARTIALLY IMPLEMENTED` interface's missing methods are generated empty, in
-the transpiled runtime below they are not, and a call to one is a TypeError
-there. Add a method to the double when the app starts calling another one;
-the runner names the missing one.
-
-Run them on the system with ABAP Unit (ADT `Ctrl+Shift+F10`, or SE24) - or
-**without a system**: `npm run test:unit` (the mcp-server's `abap2ui5-unit`)
-installs the framework at the release `abaplint.jsonc` pins from the npm
-package `@abap2ui5/node-runtime` (cached under `~/.abap2ui5-mcp`; a pin older
-than 1.145.0 clones the release and builds its backend instead), transpiles
-the classes under `src/` with their test includes into it and runs the tests
-through the open-abap runtime. The `unit`
-job in `check.yml` does the same on every pull request through the
-`abap2UI5/mcp-server` action, with the step summary naming every test method
-and the first failure. What the runtime cannot model (the abap-check skill
-lists the known cases) a system still has to answer. `npm run check` stays
-what it is: abaplint compiles the include against the framework's interface,
-and the abap2UI5-linter skips `*.testclasses.abap`, so the render gate sees
-the app class alone. The rename step renames the include with the class (it
-is in `template.json`'s `substitutions.class.files`).
-
-## Agent skills
-
-`.claude/skills/` holds four `SKILL.md` files an agent loads when the task
-matches their description: **build-an-app** (the checklist for writing an app
-class, which points into this file), **view-chain-layout** (the seven layout
-rules for a builder chain and the linter rule that checks them),
-**abap-check** (ABAP that a green CI does not catch: abapGit round trip,
-activation, extended check, runtime) and **ui5-check** (the same for the
-view: names that do not exist on the oldest supported UI5 release, layout that
-needs a newer one). They are mirrored from
-[abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5)'s `.claude/skills/`
-by the template's generator, with a declared handful of sentences reworded
-(`npm run fmt:chains` is `npm run fix` here, the guide is this file). Where a
-skill says "this repository" or names a `.github/scripts/` gate, it means the
-framework's. Fix them upstream; a regeneration overwrites the copies (the
-template regenerates both mirrors daily and opens a pull request when
-abap2UI5 changed them; a project made from it takes newer text by copying
-the files from the template's `main`).
-
-Starting a project without this repository's own scaffolding: `npm create
-abap2ui5-app@latest my-app -- --class zcl_my_app` writes the same files from
-the template's `main` branch (see the template's README for the four ways).
-Adding this setup to a project that did not start from the template: `npm
-create abap2ui5-app@latest -- --agent-setup` in its directory writes the agent
-files and the gates (`template.json`'s `agentSetup` says which), skips every
-file the project already has, and only adds to `package.json` and
-`.gitignore`.
-
-The rest of this file is the complete app-building reference — read it before
-writing or changing any app class.
-
-> **Provenance:** everything from "1. The model in one paragraph" down is a
-> mirror of `docs/agents/building-apps.md` in
-> [abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5) — the copy exists
-> so this repo needs no framework checkout. It is **generated**, in
-> [abap2UI5/app-template](https://github.com/abap2UI5/app-template), from the
-> guide plus a declared list of deviations, and carried there by a daily
-> pull request whenever the guide changes. Fix it upstream (a CI gate there
-> checks it against the real client API) rather than here. In your own project
-> you may of course extend this file with your app's own rules — put those
-> ABOVE this line, where a regeneration does not reach.
->
-> **Three sentences deviate on purpose**, because the mirrored text names
-> commands and files that exist in the framework repository and not here:
->
-> 1. §3 "Formatting the chain": the framework's `npm run fmt:chains` is
->    `npm run fix` here (same command, `abap2ui5lint --fix`).
-> 2. §3, same paragraph: `.github/abaplint/auto_abaplint_fix.jsonc` is a file
->    of the framework repository, so the sentence says whose it is. This repo
->    has no autofix config — abaplint's formatting rules are simply not
->    enabled in `abaplint.jsonc`.
-> 3. §8 "Formatters": `npm run check:formatter` is the framework's own gate,
->    so the sentence says so.
->
-> Those are not re-applied by hand. They are **declared**, and the template's
-> generator and abap2UI5's own `npm run check:shared` apply the same
-> declaration — one to write this half, one to check it — so a deviation whose
-> upstream sentence was edited away fails both rather than being quietly
-> skipped.
-
-## 1. The model in one paragraph
+### 1. The model in one paragraph
 
 An abap2UI5 app is **one ABAP class** implementing `z2ui5_if_app`. The
 framework calls its `main( client )` method on every HTTP roundtrip, and the
@@ -201,7 +77,7 @@ bound data goes in `PUBLIC SECTION`, everything else in `PROTECTED SECTION`.
 There is no JavaScript, no OData service and no deployment step: activate the
 class, call the ICF endpoint with `?app_start=zcl_my_app`.
 
-## 2. The canonical app template
+### 2. The canonical app template
 
 ```abap
 CLASS zcl_my_app DEFINITION PUBLIC.
@@ -296,103 +172,33 @@ CLASS zcl_my_app IMPLEMENTATION.
 ENDCLASS.
 ```
 
-Conventions that keep apps uniform (proven in the samples-controls corpus):
-`main` is a pure dispatcher; methods follow in call order with `model_init`
-last; add `model_init`/`on_event` only when the app has data/events; always
-dispatch events with `CASE client->get_event( ).` even for a single event.
-**The `check_on_navigated( )` branch is part of the canonical dispatcher, not
-an option**: without it the view is only ever built on `check_on_init`, so
-navigating away (`nav_app_call`) and back leaves the app blank — the
-framework fires `check_on_navigated`, nothing re-displays. Always re-run
-`view_display( )` there.
-
-**The dispatcher is ONE `IF`/`ELSEIF` chain, so exactly one arm runs per
-roundtrip — which is why the `check_on_init( )` arm displays too.**
-`check_on_init( )` being true implies `check_on_navigated( )` is true: all
-four ways an instance reaches its first `main( )` set the flag
-(`factory_first_start` for a fresh start and for a draft restore,
-`factory_system_startup`, and `prepare_app_stack` for both `nav_app_call` and
-`nav_app_leave`). On that first roundtrip the init arm wins and the `ELSEIF
-check_on_navigated( )` arm is skipped, so the init arm seeds AND displays, as
-in the template above. What decides nothing is an init arm that ONLY displays:
-`IF check_on_init( ). view_display( ). ELSEIF check_on_navigated( ).
-view_display( ).` has two identical arms (the linter's `redundant-init-display`),
-and `IF check_on_init( ) OR check_on_navigated( ).` is the same redundancy
-spelled differently. An app with nothing to seed drops the init arm:
-
-```abap
-    me->client = client.
-    IF client->check_on_navigated( ).
-      view_display( ).
-    ELSEIF client->check_on_event( ).
-      on_event( ).
-    ENDIF.
-```
-
-Keep the `check_on_init( )` arm where it earns its place — a `model_init( )`
-call, or the one or two control-state flags an app seeds inline — followed by
-the same `view_display( )` the navigated arm makes.
-
 - **Do:** one chain — `IF client->check_on_init( ).` (seed, then display),
   `ELSEIF client->check_on_navigated( ).` (display), `ELSEIF
   client->check_on_event( ).` (dispatch), as in the template.
-- **Don't:** seed in an `IF client->check_on_init( ). … ENDIF.` block of its own
-  and display in a second `IF client->check_on_navigated( ).` block, or nest one
-  lifecycle `IF` inside another arm. The flags overlap — init implies
-  navigated, and an app handed control back can arrive with an event too — so
-  separate blocks run more than one of them on one roundtrip, and the order
-  they happen to sit in becomes the behaviour. The linter reports every such
-  pair as `separate-lifecycle-ifs`, without an automatic fix for the
-  seed-then-display pair: folding it into an `ELSEIF` as it stands would leave
-  the first screen empty. The one exempt shape is a guard block that leaves
-  the method (`… RETURN. ENDIF.`).
 
-Two more conventions, both about reading the source rather than running it:
+### What you remember may be the old API (§3)
 
-- **A mock table is a table — line its columns up.** In a `VALUE #( )` with
-  three or more rows and the same field list in each, pad every cell to the
-  width of its column (the last one stays unpadded, so no spaces pile up before
-  the closing `)`). Where a padded row would break the 255-character line limit,
-  wrap it instead — at the *same* field boundaries in every row, so the columns
-  still read down the page. Rows whose field list differs (an optional field, a
-  nested child table) have no column to align and are left alone.
+**Names that changed.** Most of what was written about abap2UI5 before
+1.143.0 names an API that has been replaced; when one of these comes to mind,
+write the right-hand side:
 
-  ```abap
-  t_items = VALUE #(
-      ( title = `Fixed Item 1` icon = `sap-icon://employee` enabled = abap_true )
-      ( title = `Fixed Item 2` icon = `sap-icon://building` enabled = abap_true )
-      ( title = `Fixed Item 3` icon = `sap-icon://card`     enabled = abap_true ) ).
-  ```
+| Remembered | Write |
+|---|---|
+| `z2ui5_cl_xml_view=>factory( )->shell( )->page( )` | `z2ui5_cl_ui5_view_builder` as above — the legacy fluent builder (one method per control) is frozen and since 1.151.0 only exists where [abap2UI5-ext](https://github.com/abap2UI5/abap2UI5-ext) is installed |
+| `_bind_edit( )`, `view_model_update( )` | `_bind( )`; delete the update call (§4) |
+| a `check_initialized` flag | `client->check_on_init( )` (§2) |
+| `client->get( )-event`, `get( )-t_event_arg` | `client->get_event( )`, `client->get_event_arg( )` (§5) |
+| `_event_client( )` | `follow_up_action( )` (§5) |
+| `nav_app_leave( client->get_app( client->get( )-s_draft-id_prev_app_stack ) )` | `client->nav_app_leave( )` (§7) |
+| `z2ui5_cl_pop_to_confirm` and the other `z2ui5_cl_pop_*` | `z2ui5_cl_popup_*` of the popups addon (§6) |
+| `z2ui5_cl_util=>…` | no longer in the framework and no API for apps — write the few lines yourself |
 
-- **A call that fits on one line goes on one line.** Stacking parameters is for
-  calls that do not fit, not for calls that have two parameters:
-  `client->popover_display( xml = popup->stringify( ) by_id = by_id ).` is 71
-  characters and needs no second line. The view chain is the exception — it has
-  its own layout rules (see the `view-chain-layout` skill), and a wrapped
-  `t_arg` list stays wrapped.
+Every replaced name with old and new code:
+<https://abap2ui5.github.io/docs/resources/deprecations.html>, as data
+<https://abap2ui5.github.io/docs/api/deprecations.json>.
 
-## 3. The view builder — `z2ui5_cl_ui5_view_builder`
+### Four rules that are cheap to break (§3, §4, §8)
 
-The builder maps **any** UI5 XML view 1:1 — every control, property,
-aggregation and namespace, nothing is wrapped or approximated. Four verbs:
-
-| Verb | XML meaning | Tree action |
-|---|---|---|
-| `ele( n ns )` | opening tag `<X>` | add child and **descend** into it |
-| `tag( n ns )` | self-closing `<X/>` | add child, **stay** on current node |
-| `end( )` | closing `</X>` | **ascend** to the parent |
-| `a( n v )` / `a( n b )` | one `name="value"` | attribute on the element the chain points at |
-
-- `n` = tag name, `ns` = namespace **prefix** (`f`, `l`, `core`, `mvc`, …);
-  omit `ns` for the default namespace (usually `sap.m`). Declare every
-  namespace as `xmlns:*` attributes on the root `View`, exactly like XML.
-- **Aggregations are just tags**: `)->ele( `items` )` for `<items>`. An
-  aggregation carries the same prefix as in the XML — `<m:content>` under a
-  `sap.ui.table` default namespace is `)->ele( n = `content` ns = `m` )`.
-- `stringify( )` renders from the root, so trailing `end( )` calls before
-  the final `).` are optional — `end` only moves the cursor to add siblings.
-  That is also what lets the whole view hang off the `factory( )` in one
-  statement (see "Formatting the chain" below).
 - **Booleans from ABAP variables** go through `b` instead of `v`:
   `` )->a( n = `editable` b = mv_edit_mode ) `` renders `true`/`false` (a
   literal is just `` v = `true` `` — never feed `abap_true` into `v` raw, it
@@ -401,813 +207,40 @@ aggregation and namespace, nothing is wrapped or approximated. Four verbs:
   the element the chain is pointing at — the child just added by `ele( )` or
   `tag( )`, or the node itself while it has none. Once an element has a
   child, `a( )` can no longer reach it.
-- Braces `{ }` inside an ABAP `|…|` string template must be escaped
-  `\{ \}` — an unescaped `{` is parsed as a UI5 binding.
-- **Text from data goes through `t`, not `v`.** The same brace rule holds at
-  runtime: the page runs with complex binding syntax, so a *value* that
-  contains `{`/`}` — user input, an external payload — is parsed by UI5 as a
-  binding (or expression) instead of shown as text, and can read arbitrary
-  paths out of the view model. So a value that carries data is passed as
-  `t`, which the builder escapes as a literal:
-  `` )->a( n = `title` t = |Results for { mv_search }| ) ``.
-  `v` stays the form for everything with binding vocabulary (`_bind`, an
-  event, a `{/path}` template, an expression) and for constant text, which
-  needs no escaping — never pass a deliberate binding as `t`, escaping
-  breaks it. Only the app knows which values are literals, which is why
-  `a( )` does not decide it for `v`. When ONE attribute mixes text with a
-  binding, escape the text part yourself with
-  `z2ui5_cl_ui5_view_builder=>escape_literal( )` inside `v`. XML escaping is
-  separate and always applied.
-
-The legacy fluent builder `z2ui5_cl_xml_view` (one method per control) still
-ships for existing apps but is **frozen** — new apps and new code use
-`z2ui5_cl_ui5_view_builder`.
-
-### Formatting the chain (strict, and machine-checked)
-
-A chain is read far more often than it is written, and its layout is the only
-thing that still makes it legible as the XML tree it stands for. **Write the
-chain, then let the formatter lay it out**: the abap2UI5-linter's
-`chain-house-layout` rule checks one call per line, four spaces per level and
-the closing call's column; `npm run check:abap2ui5` reports and `npm run fix` applies.
-The fix touches whitespace between chain segments only — read its diff before
-committing. the framework repository's `.github/abaplint/auto_abaplint_fix.jsonc` excludes its shipped apps from
-`align_parameters` / `line_break_multiple_parameters` so the auto-formatter
-does not undo the layout. The rule is **opt-in** in the linter: it runs only
-where the project's `abap2ui5lint.jsonc` names it, so check the config before
-you trust a green run.
-
-The rules — the `view-chain-layout` skill is their single source and has the
-reasoning:
-
-- **One call per line.** Every `ele( )`, `tag( )`, `a( )` and `end( )` opens
-  its own line with `)->`. A control does not share its line with its own
-  attributes, and a container does not hand straight over to the next.
-- **Four spaces per level, never two.** A child sits one level in from its
-  container, a control's `a( )` lines one level in from the control, and
-  `end( )` stands alone in the column of the `ele( )` it closes.
-- **The closing paren rides with the arrow.** Never a `)` alone at a line
-  end; every continuation reads `)->` and the whole view ends in one `` ).``.
-- **One attribute per line, `v =` column aligned** across a control's block.
-- **The `factory( )` shape follows the chain shape.** A view split into a
-  statement per subtree hangs the chain off the `factory( )` — one statement,
-  so the variable holds the `mvc:View` and a later `view->ele( `Shell` … )`
-  lands inside it:
-
-  ```abap
-  DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
-      )->ele( n = `View` ns = `mvc`
-          )->a( n = `xmlns`     v = `sap.m`
-          )->a( n = `xmlns:mvc` v = `sap.ui.core.mvc` ).
-  ```
-
-  A view built as one chain may take `factory( ).` as a statement of its own.
-  Never the standalone `factory( ).` *with* the split shape: the variable then
-  holds the root, and `view->ele( `Shell` )` adds a second root beside the
-  `mvc:View`.
-- **Come back to a node through a variable, not through a run of `end( )`s.**
-  `` DATA(page) = view->ele( `Shell` … `` once, then `page->ele( … )` per
-  subtree, each its own statement. A subtree that drifts past the right-hand
-  side of the screen is telling you to split it.
-- **A blank line opens a block, and nothing else gets one** — the one part no
-  gate checks. There are two blocks: the content of a control that carries
-  attributes (a blank after its last `a( )`, before its first child), and a
-  run of `tag`s (a blank before the first, none between them). No blank
-  between a control and its own `a( )`s, none after a bare `ele` whose first
-  child is another `ele`; a blank before every `end`, none after one.
-- Long text or binding values split with `&&` — an `.abap` line is capped at
-  255 characters.
-
-```abap
-    )->ele( `Shell`                        " bare ele into another ele -
-        )->ele( `Page`                     " one path down, no blank
-            )->a( n = `title` v = `My App`
-                                           " block 1: Page's content starts
-            )->ele( n = `SimpleForm` ns = `form`
-                )->a( n = `editable` v = `true`
-                                           " block 1: SimpleForm's content
-                )->ele( n = `content` ns = `form`
-                                           " block 2: the run of leafs
-                    )->tag( n = `Title` ns = `core`
-                        )->a( n = `text`  v = `Your data`
-                    )->tag( `Label`
-                        )->a( n = `text`  v = `Name`
-                    )->tag( `Input`
-                        )->a( n = `value` v = client->_bind( name ) ).
-```
-
-## 4. Data binding
-
-- `client->_bind( var )` binds a PUBLIC attribute: the value renders into
-  the view, and user input is written back into the attribute
-  before your event handler runs. Use it for everything, display-only
-  included (`_bind_edit`, its former alias, is removed — write `_bind`).
-- Inside a bound aggregation (a table/list template), child properties bind
-  **relative to the row** with braces on the upper-cased field name:
-  `` `{PRODUCT}` ``. A camelCase ABAP field `supplierName` becomes
-  `{SUPPLIERNAME}`.
-- A column whose name carries a **namespace** — `/CWM/XCWMAT`, the fields an
-  industry solution or a customer appends to a DDIC table — is a level of
-  its row in the model: `"CWM":{"XCWMAT":…}`. Bind it relatively as
-  `{CWM/XCWMAT}`, never `{/CWM/XCWMAT}`, which UI5 reads as an *absolute*
-  path from the model root (an empty cell, and the edit goes nowhere). When
-  the column name is only known at run time (a table maintenance, a layout
-  over any table), let
-  `z2ui5_cl_ui5_view_builder=>component_path( lv_name )` write it:
-  `` v = |\{{ z2ui5_cl_ui5_view_builder=>component_path( lv_name ) }\}| ``
-  — `/CWM/XCWMAT` becomes `CWM/XCWMAT`, every other name comes back as it
-  is. A cell bound with `_bind( val = … tab = … tab_index = … )` gets the
-  same path by itself, and an edit comes back onto the component.
-- An attribute an *interface* declares binds like one of the class:
-  `client->_bind( zif_my_state~mv_value )`, and through a reference typed
-  with the interface `client->_bind( mi_state->mv_value )`. Its path keeps
-  the `~` - `{/ZIF_MY_STATE~MV_VALUE}`, `{/MI_STATE/ZIF_MY_STATE~MV_VALUE}`,
-  a namespaced interface a level like every namespace
-  (`{/NS/IF_STATE~MV_VALUE}`) - so never spell it by hand: take it from
-  `_bind( )` / `_bind_path( )`. With `ALIASES mv_value FOR
-  zif_my_state~mv_value`, both spellings are one attribute and bind to the
-  same path.
-- A value shared by the whole app lives at the model **root** — inside a row
-  template a relative `{FIELD}` resolves against the row and silently renders
-  empty if the row has no such column; bind root values with
-  `client->_bind( field )` even inside templates.
 - **Never hard-code a model path as text** (`'/T_ITEMS'`): paths come from
   `_bind`, so renames cannot break bindings. For raw binding-info strings
   (typed bindings, sorters) get the bare path via
   `client->_bind_path( t_items )`, e.g.
   `` v = |\{ path: '{ client->_bind_path( t_items ) }', sorter: \{ path: 'PRODUCT' \} \}| ``.
-- Typed/complex bindings pass through verbatim (braces escaped):
-  `` v = |\{ path: 'PRICE', type: 'sap.ui.model.type.Float' \}| `` — note the
-  `path:` uses the upper-cased ABAP field name.
-- Type numeric/boolean model fields as `i`/`p`/`abap_bool`, not `string` —
-  UI5 2.x rejects a JSON string on a float/int/boolean control property.
-- An ABAP field is never *absent* — it is initial — so by default every field
-  reaches the browser as an explicit `""`/`0`, which **overrides the control's
-  own default** (and an enum-typed property rejects the empty string outright).
-  When a bound template's rows fill different subsets of the same properties,
-  bind with `client->_bind( val = t_rows omit_initial = abap_true )`: initial
-  fields then stay out of the model and each control keeps its UI5 default.
-  A **boolean that must send `false`** is the exception — `abap_false` is
-  itself initial, so the blanket flag would drop it and the control would fall
-  back to its default `true`. Scope the omission instead:
-  `client->_bind( val = t_rows omit_initial_paths = VALUE #( ( `MIN` ) ( `MAX` ) ) )`
-  lists the columns that may vanish and leaves every other field alone.
-- A control property that expects an **object** — a `sap.ui.integration`
-  widgets:Card `manifest` is the case this exists for — cannot be fed from a
-  typed ABAP value at all: a manifest's keys (`sap.app`, `sap.card`) are not
-  valid ABAP field names, so it is no structure, and UI5 reads a *string*
-  manifest as a manifest **URL**. Keep the JSON in a `string` attribute and
-  bind it with `client->_bind( val = manifest json = abap_true )` — the
-  serializer then splices its content into the model as a JSON node instead of
-  a quoted string. Outbound only (the client renders such a payload, it never
-  authors it), and a string that does not parse raises rather than shipping
-  broken JSON. Where the sample keeps one manifest per file, bind its URL
-  instead — that path needs no flag.
-- A **large table** — more rows than the screen shows — binds with
-  `client->window_bind_tab( val = t_rows total = mv_total event = `ROWS` window = 100 )`
-  instead of `_bind( )`. The **app** loads the rows a window at a time, the
-  way an OData service answers `$skip`, `$top`, `$orderby` and `$filter`:
-  `t_rows` holds the rows loaded so far, in the order the browser shows them,
-  and `mv_total` how many there are in all (a growing `sap.m.Table` shows
-  "More [100 / 5000]", a `sap.ui.table.Table` a scrollbar for all of them).
-  When the browser needs more rows, or the binding is sorted or filtered (the
-  column menu of `sap.ui.table` via `sortProperty`/`filterProperty`, a
-  `cs_event-binding_call` sort or filter, e.g. from a `SearchField`), the app's
-  `main( )` runs with the event `ROWS` and the request in `get( )-r_event_data`:
-
-  ```abap
-  WHEN `ROWS`.
-    FIELD-SYMBOLS <req> TYPE z2ui5_if_client=>ty_s_window_request.
-    DATA(lr_req) = client->get( )-r_event_data.
-    ASSIGN lr_req->* TO <req>.
-    CASE <req>-reason.
-      WHEN z2ui5_if_client=>cs_window_reason-more.
-        " append <req>-top rows after the lines( t_rows ) the browser has
-      WHEN OTHERS.
-        " SORT / FILTER: <req>-t_sort and <req>-t_filter are the binding's
-        " whole state - load from the first row again and set mv_total
-    ENDCASE.
-  ```
-
-  The framework neither sorts nor filters nor counts, and no view is rendered
-  again: change `t_rows` and `mv_total` and the push does the rest
-  (`mv_total` is read anew on every response when it is an attribute of the
-  app). Because `t_rows` is exactly what the browser shows, a row index, a
-  cell edit or a selection is the row of `t_rows` with that index. `val` may
-  also be a data reference to the table (`REF #( )`, an attribute `TYPE REF
-  TO data`). The total is `/__WINDOW/<path>/TOTAL` in the model — build it
-  from `client->_bind_path( t_rows )`. Only a STANDARD table, bound whole;
-  sorters and filters written into the binding info are not applied.
-- **Bound data changed in an event handler is pushed automatically** — the
-  framework compares the model before and after `main( )` on every event
-  round-trip and, when it differs, sends it to every open view slot (MAIN,
-  POPUP, POPOVER; the nested views inherit MAIN's model). A handler cannot
-  render stale by forgetting anything: there is nothing to call and nothing
-  to switch on. Call `view_display` again only when the view **structure**
-  itself changes.
-- **A value the view shows is BOUND, not baked in.** `a( n = `text` t =
-  SWITCH #( edit_mode WHEN abap_true THEN `Display` ELSE `Edit` ) )` writes
-  the text into the view once; when the flag flips, only a rebuild shows it,
-  so the handler ends in a `view_display( )` whose reason no reader can see.
-  Bind an attribute instead (`v = client->_bind( button_text )`) and set it
-  in the handler - the push above does the rest, and scroll position and
-  focus survive. A `view_display( )` in an event handler is for what cannot
-  be bound: other controls or columns, an event option or argument written
-  at render time. Where one stays, a comment above it says which of these
-  it is.
-- `view_model_update( )`, `popup_model_update( )`, `popover_model_update( )`
-  and the two nested variants are **removed** - they had done nothing since
-  the push became automatic. An app written for an older release deletes
-  the calls; nothing changes at runtime.
-
-## 5. Events
-
-- Wire: `)->a( n = `press` v = client->_event( `SAVE` ) )`.
-- Read in `on_event` via `CASE client->get_event( ).`.
-- **Pass values into an event** with `t_arg`; read them back with
-  `client->get_event_arg( )` (index only for position 2+). A value resolved
-  on the client must be `$`-prefixed — `` `${PRODUCT}` `` (row field),
-  `` `$event.getSource().getId()` `` (the pressed control's id),
-  `` `${$parameters>/selected}` `` (an event parameter). A bare `{…}` arg is
-  NOT resolved and arrives empty. Booleans arrive as `abap_bool` (`X`/space).
-- **Which row was pressed:** send the row's key field (`` arg = `${ID}` ``)
-  when the handler needs the row's DATA, and look it up with `READ TABLE …
-  WITH KEY`. Send the position
-  (`` `$event.getSource().getBindingContext().getPath().split('/').pop()` ``,
-  0-based) only when the handler needs the POSITION itself: for
-  `cs_event-bind_element`, or for a drag and drop. A nested model passes the whole binding path
-  (`…getBindingContext().getPath()`) the same way.
-- **A control-valued event parameter arrives as JSON.** Several UI5 events
-  hand over a control or a whole array of controls rather than a scalar —
-  `ViewSettingsDialog.confirm` gives `filterItems`,
-  `SinglePlanningCalendar.selectedDatesChange` a list of `DateRange`. Pass the
-  parameter like any other (`` `${$parameters>/filterItems}` ``); the frontend
-  marshals each control into an object carrying its `ID` plus its public
-  properties, so `client->get_event_arg( )` returns a JSON array. Read the one
-  property you need out of it BY HAND, per the bullet below — not with
-  `z2ui5_cl_ajson`, which is framework-internal. Do **not** parse a display
-  string such as `filterString` — it is localized and its format is not a
-  contract.
-  **Read only the fields you need**, and never expect the payload to be the
-  shape you modelled: it carries *every* public property of the control — a
-  `ViewSettingsItem` also brings `enabled`, `textDirection` and `wrapping` —
-  so a reader that walks for one named key is both the smallest and the most
-  robust thing to write. Two properties on the same object need two walks,
-  which is still less code than a mapping that has to anticipate the rest.
-  **Not every such payload is flat.** `projectValue` in
-  `bundle/webapp/core/Lib.js` passes an object- or array-valued property through
-  unchanged (up to `MAX_ARG_DEPTH`), so a control with a property typed
-  `object`/`any` marshals as a nested node. When that is what you are looking
-  at, do not grow the reader: bind the value into the model instead and let
-  the framework's own write-back fill the ABAP structure — `whole_value_apply`
-  in `z2ui5_cl_ui5_srv_model` converts a whole object or array with
-  `to_abap( iv_corresponding = abap_true )`, which is the corresponding-only
-  mapping this used to reach ajson for, already written and already released.
-- **JSON is built and read BY HAND, and there is no released parser.**
-  The framework ships none for apps. Do not reach for a substitute:
-  `/ui2/cl_json`
-  is not released for ABAP Cloud, `xco_cp_json` is missing on 7.02, and the
-  vendored ajson is framework-internal, which the linter's
-  `non-released-api` rule reports — correctly.
-  - **Outbound** (a control property that must receive an OBJECT, e.g. a
-    `sap.ui.integration` Card manifest): compose the JSON as a string in
-    ABAP and bind it with `_bind( val = … json = abap_true )`, which splices
-    it in as a model node instead of a quoted string.
-  - **Inbound** (an event argument that arrives as JSON): write the few
-    lines that read the one field you need. Where the payload is written by
-    the framework and flat, a targeted `find`/`substring_before` walk is the
-    whole job — `z2ui5_cl_smp_app_197` (`json_get_values`, one property
-    across an array of objects) and `z2ui5_cl_smp_app_327` (`json_get_value`,
-    one field of a flat object) in `abap2UI5/samples` are the pattern to copy.
-    Two cases need more than that, and both have an answer that is not a
-    bigger parser:
-    - **The payload is NESTED** (see the control-parameter bullet above):
-      bind the value instead of parsing the event argument. A two-way bound
-      attribute is filled by the framework's own write-back, corresponding
-      fields only, with no app-side parsing at all.
-    - **The app WROTE the payload itself** — publishing into an AMC channel,
-      writing browser storage — so it carries free user input. Then escaping
-      is the job: a quote the user typed reaches the reader as `\"`, and a
-      `substring_before` on the next quote ends the value early. Escape on
-      the way out and WALK the value on the way in, resolving escapes;
-      `z2ui5_cl_smps_app_489` in `abap2UI5/samples-stack` (`json_build`,
-      `json_escape`, `json_get_string`) is that case written out. The walk
-      also makes the key search safe: text containing `","author":"` cannot
-      forge a sibling field, because its quotes are escaped and no longer
-      match the marker.
-    An app parsing genuinely arbitrary, nested JSON is doing something this
-    framework does not hand it a tool for.
-- **A dynamic type names a type the SYSTEM has, not one abap2UI5 ships.**
-  `CREATE DATA … TYPE STANDARD TABLE OF (name)` needs a name that exists at
-  runtime, and the name belongs to the app's own domain — a DDIC structure of
-  the customer's, a CDS view, whatever the app is browsing. abap2UI5 ships
-  no dictionary object an app is supposed to point at (§ *No new dictionary objects* in `AGENTS.md`), and
-  the framework's own tables (`z2ui5_t_01`) are internals that may change —
-  naming one from an app is borrowing a table, not using an API.
-- **The per-wire flags (`s_ctrl`, type `ty_s_event_control`).** By default
-  an event fired while a roundtrip is in flight is DROPPED — right for a
-  click, wrong for a per-keystroke wire (`liveChange`, `liveSearch`,
-  `sliderChange`), where it loses every keystroke typed under the running
-  roundtrip, the last one included, and leaves the backend at the value of
-  the last completed roundtrip while the control shows the current one.
-  `check_queue_last = abap_true` keeps the LAST event fired on the wire and
-  dispatches it once the response has landed — one roundtrip in flight at a
-  time, order preserved, the backend ends on the control's current value;
-  no debounce, so a pause still costs one roundtrip. Pair it with
-  `check_no_busy = abap_true`, which keeps the full-screen busy overlay
-  down for that wire — without it every keystroke landing on a roundtrip in
-  flight raises the overlay at once, over the very field being typed into
-  (the roundtrip, the busy STATE and the guard are unchanged, only the
-  overlay is not shown). There is no flag for
-  sending every firing at once: only the newest response may commit, so the
-  earlier roundtrips would be work thrown away. A background wire that must
-  not wait — a timer tick, a poll — needs no queue flag either: `START_TIMER`
-  carries its own slot and waits out the roundtrip in flight
-  (`core/actions/ViewOps.js`, `evStartTimer`). What it does share with a
-  click is the overlay: a tick raises it after the usual one-second delay,
-  so a poll whose backend call takes longer flashes it over a screen nobody
-  is waiting on. An optional third `t_arg`, `` `X` `` — `abap_true` as
-  `t_arg` spells every flag — is the tick's `check_no_busy`:
-  `` client->follow_up_action( val = z2ui5_if_client=>cs_event-start_timer t_arg = VALUE #( ( `TICK` ) ( `5000` ) ( `X` ) ) ) ``.
-  Like the flag, it takes the overlay down and nothing else — a click that
-  lands while the tick is in flight is held back and sent once the tick's
-  response is applied.
-  `check_prevent_default` / `prevent_default_expr` cancel the
-  control's built-in default before the roundtrip, `check_arg_literal`
-  quotes every argument — see the doc on `z2ui5_if_client=>_event`.
-- Roundtrip-free client actions: `client->follow_up_action( val = … t_arg = … )`
-  written where its RESULT is consumed — in a view attribute — runs a
-  whitelisted frontend action without a server call (toast from a row value,
-  client-side sort/filter via `binding_call`, …). `client->_event_client( )`
-  is the obsolete name for exactly this and emits the identical wire.
-- After the response, `client->follow_up_action( val = … t_arg = … )` as a
-  STATEMENT schedules a frontend action: focus (`cs_event-set_focus`), scroll, title,
-  clipboard, timers, keyboard shortcuts, `control_by_id` (call a public
-  method on a control), `binding_call` (filter/sort an aggregation binding).
-  The full catalog with per-action `t_arg` documentation sits on
-  `z2ui5_if_client=>follow_up_action` and in `cs_event`.
-- Timers: `cs_event-start_timer` raises a backend event once after a delay,
-  `t_arg` = event, delay in ms, optional no-busy flag, optional REPEAT flag.
-  A one-shot timer is cancelled by every roundtrip, so it has to be armed
-  again by each response that keeps it going. A poll arms a REPEATING timer
-  instead, ONCE — the fourth `t_arg` `` `X` ``:
-  `` client->follow_up_action( val = z2ui5_if_client=>cs_event-start_timer t_arg = VALUE #( ( `POLL` ) ( `5000` ) ( `X` ) ( `X` ) ) ) ``
-  (no-busy and repeat; `` ( `` ) `` in third place for a repeat that shows the
-  overlay). The browser arms the same tick again after every applied response:
-  a user event in between pauses it and it goes on, with the full delay, after
-  that event's response; no tick is sent while a user event waits or is in
-  flight. It keeps running under a popup or popover of the same app. It ends
-  with `cs_event-stop_timer` (`` client->follow_up_action( z2ui5_if_client=>cs_event-stop_timer ) ``,
-  or round-trip free on a press), with a new `start_timer` (it replaces the
-  timer; one without the repeat flag is one-shot again), with every navigation
-  to another app — a called popup app too; restart it in the
-  `check_on_navigated( )` branch — with a browser Back/Forward restore and the
-  error overlay. One timer per app. The handler of the tick is an ordinary
-  `check_on_event( `POLL` )` branch and arms nothing; a tick that leaves the
-  app unchanged writes no draft. Switching an existing poll: replace the
-  `start_timer` call made on every roundtrip by one call with the repeat flag
-  where the screen is shown, and call `stop_timer` where polling should end.
-- A poll that belongs to the app's screen is best DECLARED:
-  `` client->timer_set( event = `POLL` delay_ms = 5000 no_busy = abap_true ) ``
-  (in `check_on_init( )`, or in the render method on every roundtrip — an
-  unchanged declaration that runs is not sent again). The framework stores it
-  with the app (in its draft, no attribute of yours) and arms it as the
-  repeating `start_timer` whenever the app gets the screen: the first display,
-  the return from a called app (a popup app closing included), a browser
-  Back/Forward restore or app-state link. It stops it when the app is left and
-  arms it again on the way back, so there is no `check_on_navigated( )` re-arm
-  and no "is it still armed" memo in the app. Other values replace it,
-  `client->timer_stop( )` ends it (an empty event or a delay of 0 does the
-  same). The tick is the same repeating timer, so a click pauses it and an
-  unchanged tick still writes no draft. The last statement wins: a
-  `follow_up_action( )` with `start_timer`/`stop_timer` takes the timer over
-  and drops the declaration until the next `timer_set( )`.
-- The title of a screen is one call in both environments:
-  `` client->follow_up_action( val = z2ui5_if_client=>cs_event-set_title t_arg = VALUE #( ( `Stock` ) ) ) ``
-  sets the browser title, and inside the Fiori launchpad the shell title as
-  well — no `check_launchpad_active` branch into `set_title_launchpad`.
-  Both leave the titles to the host when the app is embedded in a page it
-  does not own (a section of a Fiori elements app). A
-  `Page` that should not repeat the shell's title inside the launchpad hides
-  its header with one attribute, not a second view:
-  `` )->a( n = `showHeader` b = xsdbool( client->get( )-check_launchpad_active = abap_false ) ) ``.
-
-## 6. Popups, popovers, messages
-
-- `client->popup_display( val = … )` opens a `core:FragmentDefinition`
-  string (build it with `z2ui5_cl_ui5_view_builder` too) as a dialog. Closing: wire a
-  Close button to `client->follow_up_action( val = z2ui5_if_client=>cs_event-popup_close )`
-  (round-trip free - the frontend tears the popup slot down without reaching
-  your `main`), or call `client->popup_destroy( )` server-side after handling
-  your own event. A button that only closes takes the first form: a backend
-  event whose branch is nothing but `popup_destroy( )` is a whole roundtrip
-  for what the browser does by itself, and the linter's
-  `close-only-roundtrip` reports it (`popover_close` for a popover).
-  Not `_event( cs_event-popup_close )`: that is a backend
-  event named `POPUP_CLOSE` like any other, it reaches `main( )` and closes
-  nothing by itself.
-- `client->popover_display( xml = … by_id = … )` anchors a popover to a
-  control id. **Mind the asymmetry**: the popup takes its XML as `val`, the
-  popover as `xml` — one of the most common first-try mistakes.
-- `client->message_toast_display( text )` and
-  `client->message_box_display( text type title actions … )` for messages —
-  never build your own toast/dialog for these.
-- **`message_box_display( text )` takes anything.** `text` is `TYPE any`, so
-  throw in what you have: a string, a BAPIRET2 / T100 / RAP / `symsg`
-  structure or table, a log object, an exception, an HTML string, a business
-  table, a nested structure or tree, an object, a number. Messages are
-  recognized first — they set the box's severity and title themselves and
-  several of them collapse into one box with a bullet list. Anything else is
-  rendered generically: a headline in the box (`Table with 12 entries`), the
-  data itself in the details — which abap2UI5 shows unfolded, so nothing of it
-  hides behind sap.m.MessageBox's "Show details" link. You do not pre-format
-  anything and you do not branch on what you have. The one case that shows no
-  box at all is complex data that is initial, so
-  `message_box_display( lt_return )` after a call that returned nothing stays
-  silent, as it always has. The sample `Z2UI5_CL_SMP_APP_502` in
-  [abap2UI5/samples](https://github.com/abap2UI5/samples) walks every one of
-  those cases with one button each.
-- **A pure UI5 option is not a parameter of those two methods.** They carry
-  what an ABAP app decides — the data, the kind of box, the buttons as a
-  table, the backend event raised when it closes. Where a toast docks, how
-  wide a box is, which icon it carries, what it is a dependent of: that is
-  the control, and it is set through the whitelisted global call, whose last
-  argument is the `sap.m.MessageToast.show( )` / `sap.m.MessageBox.<type>( )`
-  option object 1:1 (the display method IS the box type there, and a `t_arg`
-  starting with a brace travels as real JSON):
-  `client->follow_up_action( val = z2ui5_if_client=>cs_event-control_global t_arg =
-  VALUE #( ( `MESSAGE_BOX` ) ( `error` ) ( `Not saved.` ) ( `{"contentWidth":"30rem","icon":"WARNING"}` ) ) )`.
-  `Z2UI5_CL_SMP_APP_381` and `Z2UI5_CL_SMP_APP_512` are the two samples that
-  show that half. Wired into a view the same call runs without a round-trip
-  at all, and extra arguments fill `{0}`, `{1}` placeholders in the text.
-- A message queued right before a navigation is dropped with the screen it
-  was queued on — a `nav_app_leave( )` or `nav_app_call( )` replaces it. To
-  show it on the next screen instead (the "Saved." of a detail page that
-  returns to its list), navigate with `keep_messages = abap_true`:
-  `` client->message_toast_display( `Saved.` ) `` then
-  `client->nav_app_leave( keep_messages = abap_true )`. The toasts and
-  boxes of this roundtrip appear after the target app has rendered, ahead
-  of the target's own; a focus or a control call queued with them is still
-  dropped, since it names a control of the old screen.
-- Bind popup data exactly like main-view data; changed bound data reaches
-  an open popup automatically.
-- A popup or popover is closed automatically by anything that replaces the
-  screen underneath it: a `client->view_display( )` in the same roundtrip
-  and a navigation to another app both take it down. Re-open it in that same
-  roundtrip if it is meant to stay — `view_display( )` first, then
-  `popup_display( )` — and call `popup_destroy( )` only when you close it
-  without rebuilding the view.
-
-## 7. Multi-view, navigation, routing
-
-- One app can render `main`, two nested views, a popup and a popover
-  simultaneously (`cs_view` names them for scoped actions).
-- Call another app: `client->nav_app_call( NEW zcl_other_app( ) )`; return
-  with `client->nav_app_leave( )` (or `client->get_app_prev( )` to hand data
-  back). The framework keeps the app stack across roundtrips.
-- `client->check_nav_pending( )` is true once this `main( )` has called
-  `nav_app_call( )` or `nav_app_leave( )`. A base class or helper that runs
-  after the app's handlers asks it before it arms a timer or prepares
-  output for a screen the app is about to give away.
-- An app that opens the same popup class for several purposes names the
-  purpose in the call - `client->nav_app_call( app = lo_popup tag = `CONFIRM_DELETE` )` -
-  and reads it on the way back: `client->get_nav_tag( )` answers the tag on
-  the roundtrip the called app returns on, and is empty on every other one.
-  No flag attribute per popup, no `CAST` in a `TRY` to find out which one
-  came back.
-- `client->check_on_nav_back( )` is true on exactly the roundtrip on which
-  this app gets the screen back because an app it called left with
-  `nav_app_leave( )` (or a press wired with `_event_nav_app_leave( )`):
-  with or without a tag, with `event`/`r_data`/`keep_messages`, a popup
-  app closing (value help, confirm, error popup app) included. It is false
-  on the first start, on every roundtrip of the called app (its first one
-  too), on every event after the return, on a browser Back/Forward or
-  reload under hash routing (KEEP and FRESH restore like a start), on an
-  app-state bookmark, on `nav_app_call( me )` and on a leave to a `NEW`
-  instance (that replaces the leaving app - a forward move).
-  `client->check_on_navigated( )` is true in both directions of a hop and
-  on every start; `check_on_nav_back( )` only on the way back, so it is the
-  question to ask before reading a result - never compare class names of
-  `get_app_prev( )`, which is the caller on the way in, the callee on the
-  way back and the app itself on a first start:
-
-  ```abap
-  IF client->check_on_nav_back( ).
-    DATA(li_prev) = client->get_app_prev( ).
-    IF li_prev IS INSTANCE OF zcl_popup_confirm.
-      IF CAST zcl_popup_confirm( li_prev )->result( ) = abap_true.
-        " ...
-      ENDIF.
-    ENDIF.
-  ENDIF.
-  ```
-- **Start parameters** — a value the app is started with (`?lgn=0001` on
-  the URL, a `startupParameters` entry of a launchpad tile, the query of a
-  launchpad intent `#Object-action?lgn=0001`) — are read with one call,
-  whichever way the app was started: `` client->get_start_param( `lgn` ) ``.
-  The URL query answers first, then the launchpad's startupParameters,
-  then the intent in the hash; the name matches in any case, the value
-  comes back as it was written (upper-case it yourself where a key needs
-  it). The sources themselves stay in `get( )-s_config-search`,
-  `get( )-t_comp_params` and `get( )-s_config-hash`.
-- URL routing: `client->follow_up_action( val = z2ui5_if_client=>cs_event-hash_routing )`
-  in `check_on_init` makes the app bookmarkable and wires the browser
-  Back/Forward buttons — the mode rides in `t_arg`: `cs_nav_mode-keep` (the
-  default when `t_arg` is empty) restores the exact draft state,
-  `cs_nav_mode-fresh` restarts clean. Works inside the Fiori Launchpad.
-- The URL hash and the app state have named APIs of their own:
-  `client->hash_set( val )` writes `val` as the app's URL hash with a pushed
-  history entry (the UI5 router's `navTo`), `client->hash_replace( val )`
-  writes it without one (`navTo( ..., true )` — e.g. a layout arrow whose
-  drags must not become Back steps). Both write the WHOLE app hash and need
-  the app to own it: register `hash_attach_changed` first (below), or
-  nothing is written. `client->app_state_set_active( )`
-  keeps the id of the CURRENT app state in the URL on every roundtrip, so a
-  reload/bookmark/shared link restores the exact state;
-  `client->app_state_get_href( )` returns the absolute, FLP-safe link to
-  that state for the app to copy, show, mail or render as a QR code.
-  The matching `cs_event` constants for `follow_up_action( )` wires:
-  `hash_set` / `hash_replace` (the same two writes as frontend actions),
-  `hash_back` (one history step back with an optional fallback hash),
-  `hash_attach_changed` (registers a backend event that fires when the hash
-  changes under the app — Back/Forward, a manual edit; app-owned routing
-  with `hash_routing` off), `hash_routing` (the routing modes above) and
-  `app_state_set_active`. `hash_routing`, `hash_attach_changed` and
-  `app_state_set_active` are mutually exclusive — each claims the whole app
-  hash.
-
-## 8. Rules that keep apps portable
-
-- **Thin frontend**: business logic (thresholds, classification, unit
-  conversion, validation) is computed in ABAP and bound as a finished value —
-  never in a frontend formatter or custom JS. The shipped `z2ui5/model/formatter`
-  helpers are a **marshalling layer, not a formatting toolbox**: a function
-  only lives there when ABAP physically cannot produce the finished value —
-  a real JS `Date` for an object-typed property (`DateCreateObject`,
-  `DateAbapDateToDateObject`, `DateAbapDateTimeToDateObject`) or an icon-font
-  glyph of the loaded theme (`expandInlineIcons`). That is the whole set.
-  Rounding a number, joining fields into a string or mapping a status to a
-  `ValueState`/icon is your app's job: compute it in ABAP and bind it
-  (`state="{STATUS_STATE}"`). The module header states the admission criteria
-  and the framework's own `check:formatter` gate enforces them there.
-- **UI5 1.71 floor**: the framework supports OpenUI5 down to 1.71. Before
-  using a control/property/aggregation, check its "available since" in the
-  UI5 API — post-1.71 members need a UI5 release that has them; a wrong
-  aggregation name 404s the whole view on old releases.
 - **State discipline**: every PUBLIC attribute is serialized into the draft
   and sent to the browser on every render. Large helper data, catalogs and
   anything not bound belongs in PROTECTED (or is re-read per request) — a
   bloated public section makes every click slower.
-- Authorization is **the app's job**: any user who can reach the ICF node can
-  start any `z2ui5_if_app` class. The framework performs no `AUTHORITY-CHECK`
-  of its own, on purpose ([security model](https://github.com/abap2UI5/abap2UI5/blob/main/docs/security.md#what-the-app-has-to-do)).
-  Check your authorizations at the top of `main`, before any dispatch, and
-  render an error when denied - the same place a transaction or a report
-  does it. The shipped Hello World has no check because it guards nothing;
-  an app that reads or writes business data starts like this:
 
-  ```abap
-  METHOD z2ui5_if_app~main.
+### An addon class the lint gate does not find (§6, §9)
 
-    AUTHORITY-CHECK OBJECT 'Z_MY_APP' ID 'ACTVT' FIELD '03'.
-    IF sy-subrc <> 0.
-      client->message_box_display( text = `You are not authorized to use this app`
-                                   type = `error` ).
-      RETURN.
-    ENDIF.
+- **`npm run add-addon -- <repo>`** in a project made from app-template
+  (`popups`, `range-filter`, …): registers an addon, and what it depends on,
+  in the dependencies of `abaplint.jsonc`, so the lint gate resolves its
+  classes. Without it a call to an addon class ends in "Class ... not found" —
+  which says the gate does not know the addon, not that the class is wrong.
 
-    me->client = client.
-    IF client->check_on_init( ).
-    ...
-  ```
+### Where to read on
 
-  The check runs on every roundtrip, which is what you want: a revoked
-  authorization takes effect on the next click, not on the next cold start.
-- The default UI5 bootstrap loads from the CDN; system-local hosting and
-  CSP/theme/bootstrap customizing go through `z2ui5_if_ui5_exit` /
-  `z2ui5_cl_ui5_user_exit`.
-- **A third-party JS library is a deployment decision, not a view trick.**
-  The default CSP in `z2ui5_cl_ui5_user_exit` allows script only from the
-  UI5 CDN hosts (`ui5.sap.com`, `sapui5.hana.ondemand.com`,
-  `openui5.hana.ondemand.com`, `sdk.openui5.org`) — general-purpose CDNs
-  such as `cdn.jsdelivr.net` and `cdnjs.cloudflare.com` are deliberately
-  NOT on it. Every other host needs your own
-  `content_security_policy` in the exit, and a system-local copy served by
-  your own ICF node is the option that survives an offline system. Whichever
-  you pick, load the library through the UI5 loader
-  (`sap.ui.loader.config` path mapping + `sap.ui.define`) and drive it from a
-  custom control; do **not** rely on the jQuery `$` global — UI5 2.x no
-  longer ships it — and keep the library call itself free of business
-  decisions (see "thin frontend" above).
-- **An imperative UI5 method that has no bindable equivalent** — the
-  `sap.m.p13n.*` panels take their item list only through `setP13nData( )`,
-  a `sap.m.Carousel` only moves via `setActivePage( )` — is reached with
-  `client->follow_up_action( val = cs_event-control_by_id … )`. Check
-  `cs_event` and the whitelist before writing custom JS: an argument the
-  whitelist does not declare is silently dropped, but a method it declares
-  needs no JS at all.
+Sections of `.claude/skills/build-an-app/references/building-apps.md`:
 
-## 9. Validate and iterate like the framework does
-
-- **Starting a new app repo? Use
-  [abap2UI5/app-template](https://github.com/abap2UI5/app-template)** — it
-  ships the starter app, abaplint + linter CI, this guide as its AGENTS.md
-  and the agent permission setup preconfigured.
-- **[abap2UI5-linter](https://github.com/abap2UI5/linter)** checks
-  app classes statically (unknown/deprecated/too-new controls and members,
-  binding mistakes, builder-tree defects) and can render the view headless:
-  `npx --yes @abap2ui5/linter my_app.clas.abap` — also
-  available as a GitHub Action and inside the VS Code extension.
-- **[mcp-server](https://github.com/abap2UI5/mcp-server)** gives MCP-capable agents
-  the full loop without a SAP system: `capabilities` → `deploy_app` →
-  `build_backend` → `run_app` (headless screenshot + errors).
-- **Need a UI5 fact - which properties a control has, what an aggregation is
-  called?** SAP's own [UI5 MCP server](https://github.com/UI5/mcp-server)
-  gives an agent the official UI5 API documentation, next to the abap2UI5
-  one above. It answers for the CURRENT UI5 release: whether a control,
-  property or icon exists on the oldest release an app has to run on is
-  still the linter's answer, not its.
-- **[vscode-extension](https://github.com/abap2UI5/vscode-extension)**:
-  F9 launches the class in an embedded preview against a real system.
-- **Worked examples**, three catalogues with the same row shape, so one search
-  reads all of them: curated apps for "has somebody built this pattern" in
-  [abap2UI5/samples](https://github.com/abap2UI5/samples), 622 gate-verified
-  demo-kit ports for "how is this control expressed" in
-  [samples-controls](https://github.com/abap2UI5/samples-controls) (`src/`), and
-  apps that need something from your stack — OData, RAP, APC, the launchpad —
-  in [samples-stack](https://github.com/abap2UI5/samples-stack). What abap2UI5
-  can express at all is answered in samples-controls' `CAPABILITIES.md`, each
-  claim naming the port that proves it.
-- **Unit-test the app class with `z2ui5_cl_ui5_test`** - the framework's
-  own test harness, a global `FOR TESTING` class (usable in test code only).
-  It drives the app through the REAL framework, one roundtrip per call, the
-  way the browser drives it: the handler, the client, `_bind( )` and
-  `_event( )`, the draft. No test double of `z2ui5_if_client`, no framework
-  internals. `start( )` is the first roundtrip (`check_on_init( )` and
-  `check_on_navigated( )` true), `set_model( )` is what the user types into a
-  bound control (it travels as the model delta of the next request and is in
-  the attribute when `main( )` runs), `event( )` is a press of a control wired
-  with `_event( )`:
-
-  ```abap
-  CLASS ltcl_app DEFINITION FINAL FOR TESTING RISK LEVEL HARMLESS DURATION SHORT.
-    PRIVATE SECTION.
-      METHODS post_names_the_input FOR TESTING RAISING cx_static_check.
-  ENDCLASS.
-
-  CLASS ltcl_app IMPLEMENTATION.
-    METHOD post_names_the_input.
-      DATA(test) = z2ui5_cl_ui5_test=>start( NEW zcl_my_app( ) ).
-      cl_abap_unit_assert=>assert_true( xsdbool( test->view_xml( ) CS `POST` ) ).
-
-      test->set_model( path = `/NAME`
-                       val  = `World` )->event( `POST` ).
-
-      DATA(messages) = test->messages( ).
-      cl_abap_unit_assert=>assert_equals( exp = `Hello World`
-                                          act = messages[ 1 ]-text ).
-      cl_abap_unit_assert=>assert_equals( exp = `World`
-                                          act = CAST zcl_my_app( test->app( ) )->name ).
-    ENDMETHOD.
-  ENDCLASS.
-  ```
-
-  What else it does: `event( val t_arg )` with event arguments, `leave( )`
-  (a press wired with `_event_nav_app_leave( )`), `timer( )` (the tick of a timer
-  declared with `timer_set( )` or armed with `cs_event-start_timer`), `restore( )` (a reload from the last draft:
-  `check_on_navigated( )` without `check_on_init( )`), and
-  `start_called( app )` - the app as the target of a `nav_app_call( )`, the
-  way a popup app or a value help is reached, so its `nav_app_leave( )` goes
-  back and `nav_left( )` hands you the instance that left, to read its
-  result. Readers: `view_xml( )`, `nest_xml( )`, `nest2_xml( )`,
-  `popup_xml( )`, `popover_xml( )` (what each slot shows NOW - a slot keeps its
-  view until a roundtrip replaces or destroys it), `model( path )` (the
-  browser's model, your edits included), `actions( )` and `messages( )` (what
-  the LAST roundtrip asked the browser to do), `nav_called( )`, `app( )`,
-  `response( )` (the raw JSON). Model paths are written as in a binding, table
-  rows from 0: `/MT_TAB/0/NAME` is the first row.
-
-  Two things follow from the draft and are worth knowing: every event
-  restores the app from the draft the previous roundtrip saved, so **read
-  `app( )` again after every step** (an older reference is a dead instance)
-  and change a bound value with `set_model( )`, not on the instance; and an
-  attribute the draft cannot carry fails in the test as it fails in the
-  browser. The drafts are kept in memory - no row reaches `Z2UI5_T_01` - and
-  an app that calls `set_session_stateful( )` keeps its instance, as on a
-  system. The harness runs on a system, on ABAP Cloud, on 7.02 and in the
-  transpiled backend (`run_unit_tests` of the MCP server, `npm run test:unit`
-  in an app-template project). It ships with the release after 1.150.0; on an older
-  installation a hand-written `ltd_client` with `INTERFACES z2ui5_if_client
-  PARTIALLY IMPLEMENTED.` is the fallback. What only the browser does - a
-  frontend event, rendering - is not covered; that is the linter's render check.
-- **Getting the class into a system.** An app is delivered as abapGit files —
-  `zcl_my_app.clas.abap` and its `zcl_my_app.clas.xml` sidecar, in a
-  repository the system pulls with abapGit — or its source is pasted into the
-  class in ADT / SE24. Nothing else is deployed: no BSP application, no
-  service, no frontend artefact. Once the class is active it runs at the
-  framework's endpoint with `?app_start=zcl_my_app`. An agent without a
-  connection to the system stops at the files — say so, and say which of the
-  gates above ran.
-- **`npm run doctor`** in a project made from app-template: the environment
-  check — Node, the two gates, Chromium for the render gate, the framework
-  pin, the sidecars — that names the remedy for each failure.
-- **`npm create abap2ui5-app@latest my-app -- --class zcl_my_app`**: the
-  project scaffold without a GitHub template button or an editor.
-- **`interact_app`** in the MCP server: click, type and fire events in the
-  headless app and look at the result — the event branch, not just the boot.
-
-## 10. The in-app developer tools (Ctrl+F12)
-
-Every abap2UI5 page carries its own developer tools: a dialog over the running
-app that shows the roundtrips, the view XML and the model, the log and the
-environment, without the browser's devtools. They are part of the frontend
-(`bundle/webapp/devtools/`), so they are there on every system and in every
-app, with nothing to install and nothing to configure.
-
-### Starting them
-
-| How | What it does |
+| § | Read it for |
 |---|---|
-| **Ctrl+F12** in the running app | Opens the dialog; Ctrl+F12 again closes it. Without a tab named, it reopens where you left off (remembered per browser tab in `sessionStorage`) |
-| **`?z2ui5-devtools=1`** on the page URL | Opens the tools as soon as the page has booted, on the Overview. For a problem that happens during startup, where Ctrl+F12 comes too late. Example: `https://<host>/sap/bc/z2ui5?sap-client=100&z2ui5-devtools=1` |
-| **`?z2ui5-devtools=<KEY>`** | Opens them directly on one view, by its key. Group keys: `OVERVIEW`, `PROBLEMS`, `ROUNDTRIPS`, `VIEWDATA`, `SYSTEM`, `SEARCH`. View keys: `ERROR`, `LOG`, `HISTORY`, `REQUEST`, `PLAIN`, `ACTIONS`, `DIFF`, `VIEWDIFF`, `VIEW`, `MODEL`, `BINDINGS`, `POPUP`, `POPUP_MODEL`, `POPUP_BINDINGS`, `POPOVER`, `POPOVER_MODEL`, `POPOVER_BINDINGS`, `NEST1`, `NEST2`, `JOURNEY`. Example: `?z2ui5-devtools=HISTORY` |
-| **"Open on Error"** switch on the Overview tab | Once on, the tools pop open on the Log as soon as anything logs at error level: a backend error, an uncaught exception, an unhandled rejection, a binding problem. Off by default, remembered per browser tab |
-| From the **start app** (`z2ui5_cl_ui5_app_start`) | The System information popup covers the backend (settings, user exit, drafts); its text points to Ctrl+F12 for the frontend side (UI5 version, theme, device, requests, logs) |
+| 1 | The model in one paragraph |
+| 2 | The canonical app template |
+| 3 | The view builder — `z2ui5_cl_ui5_view_builder` - Formatting the chain (strict, and machine-checked) |
+| 4 | Data binding |
+| 5 | Events |
+| 6 | Popups, popovers, messages |
+| 7 | Multi-view, navigation, routing |
+| 8 | Rules that keep apps portable |
+| 9 | Validate and iterate like the framework does |
+| 10 | The in-app developer tools (Ctrl+F12) - Starting them; What you find there; When they do not open |
+| 11 | Calling a language model |
 
-The roundtrip history and the console capture record from the first
-roundtrip on, whether the dialog was ever opened or not: opening the tools
-after the problem still shows what happened before. The dialog itself and
-the inspectors arrive on the first Ctrl+F12 as a second bundle
-(`GET <page url>&z2ui5-bundle=devtools`, cached by ETag), so a plain app
-start does not pay for them. There is no backend switch and no ABAP call to
-open them; they are a frontend affair.
-
-### What you find there
-
-- **Overview**: which app, which roundtrip, is anything broken, and where to
-  go next. The landing tab, with the "Open on Error" switch.
-- **Problems**: the last fatal error (with Retry / Restart / Logout) and one
-  Log timeline of everything: the framework's error log with stack traces,
-  UI5's log, uncaught errors, rejections, every `console.*` call and the
-  messages the user was shown.
-- **Roundtrips**: every roundtrip with backend vs. render time, payload sizes
-  and draft ids, the raw request and response JSON, the follow-up actions and
-  a diff of the model between two roundtrips. The **Journey** view records a
-  click-through: press "Record Journey", use the app, press it again, and
-  "Export ABAP Unit" hands over a local test class that replays the steps on
-  `z2ui5_cl_frontend_sim` ([headless-frontend](https://github.com/abap2UI5/headless-frontend))
-  - `set_value( )` for what was typed, `click( )` for every event, assertions
-  on the messages, layers, control ids and events the screens showed. Paste it
-  into the app's test include; record from the app start, because the test
-  starts the app fresh.
-- **View & Data**: the XML of the main view, the popup, the popover and the
-  nested views as the backend sent it, the model that fills each, and the
-  bindings with a missing-path check and a size ranking. The picker marks a
-  control on screen and jumps to its XML.
-- **System**: UI5 version, theme, device, the running app's ABAP class.
-- **Search**: one term across every other tab at once.
-- **Report a Bug** (toolbar): puts the whole session state on the clipboard as a
-  GitHub-ready issue body (environment, error, log, roundtrip history, the
-  app's class, each in a collapsed section). Paste it into an issue as it is.
-- The **(i)** button opens the built-in help with the same keys and shortcuts.
-
-### When they do not open
-
-- The page runs under the shipped CSP; the devtools bundle is a same-origin
-  file and needs nothing beyond `script-src 'self'`. A CSP of your own that
-  drops `'self'` blocks it, and the Log of the browser's console names the
-  blocked URL.
-- On a Fiori launchpad or a BSP page the dialog's modules are asked from the
-  page's own loader first and from the bundle second; a 404 in between is
-  expected and harmless.
-- An embedded component (`@abap2ui5/embed-control`, `?z2ui5-bundle`) has the
-  tools too, loaded from its own backend endpoint, but without the page-wide
-  console capture: the host's page is not the app's.
-
-## 11. Calling a language model
-
-`z2ui5_if_ui5_llm` is the one seam: `chat( system t_message s_options )`
-takes a system prompt, the conversation (`role` `user`/`assistant` plus
-`content`) and model/`max_tokens`/`temperature`, and answers `text`,
-`stop_reason` and `s_usage`; every failure is `z2ui5_cx_ui5_llm` (`get_text( )`
-for the user, `retryable` for a 408/429/5xx or a timeout). Get a provider from
-`z2ui5_cl_ui5_llm`: `create_claude( )` (Messages API), `create_openai( )`
-(Chat Completions - OpenAI, Azure with `auth_header` set to `api-key`, Ollama,
-LM Studio, gateways) or `create_local( t_rule = … )`, a deterministic
-rule-based provider without HTTP for 7.02, unit tests and demos.
-
-```abap
-DATA(li_llm) = z2ui5_cl_ui5_llm=>create_claude( model       = ls_cfg-model
-                                                destination = ls_cfg-destination ).
-DATA(ls_answer) = li_llm->chat( system    = `Answer briefly.`
-                                t_message = mt_chat ).
-```
-
-- **No key, model or endpoint in the class.** Read them from your own
-  configuration and pass a destination (SM59 on Standard, a communication
-  arrangement or BTP destination on Cloud) or a URL plus key; there is no
-  default model.
-- Create the provider in the method that calls it - never keep it in an
-  attribute, the app instance is serialized every roundtrip. Keep the
-  conversation (`mt_chat`) as the attribute instead, and call in an event
-  branch: the user waits for the whole answer.
+<!-- guide-essentials:end -->

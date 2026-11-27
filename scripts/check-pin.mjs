@@ -91,14 +91,20 @@ export const SITES = [
   },
 ];
 
-/** The mirrored half of AGENTS.md documents the framework's current client
- * API, and the pin decides which API the gates compile against. The two move
+/** The mirrored guide documents the framework's current client API, and the
+ * pin decides which API the gates compile against. The two move
  * independently - the mirror by a daily pull request, the pin by hand - so the
  * guide can describe a class the pinned release does not have, and a reader
  * who follows it gets an unknown-class error from `npm run check` with no hint
  * that the pin is the cause. One row per API the guide names that arrived
  * after the template's floor: the symbol as the guide spells it, and the
- * release that introduced it. */
+ * release that introduced it.
+ *
+ * The guide is one file under the build-an-app skill (GUIDE_FILES[0]); until
+ * 2026-11 it was the lower half of AGENTS.md, which a project made from an
+ * older template still has - so both are read, and each only when it is
+ * there. */
+export const GUIDE_FILES = ['.claude/skills/build-an-app/references/building-apps.md', 'AGENTS.md'];
 export const API_FLOORS = [
   { symbol: 'z2ui5_cl_ui5_llm', since: '1.148.0' },
 ];
@@ -152,13 +158,13 @@ export function readPinSites(root = ROOT) {
       + found.map((f) => `      ${f.version}  ${f.file} (${f.what})`).join('\n'),
     );
   }
-  const agents = path.join(root, 'AGENTS.md');
-  if (distinct.length === 1 && fs.existsSync(agents)) {
-    const guide = fs.readFileSync(agents, 'utf8');
+  const guides = GUIDE_FILES.filter((f) => fs.existsSync(path.join(root, f)));
+  if (distinct.length === 1) {
     for (const api of API_FLOORS) {
-      if (guide.includes(api.symbol) && olderThan(distinct[0], api.since)) {
+      const where = guides.find((f) => fs.readFileSync(path.join(root, f), 'utf8').includes(api.symbol));
+      if (where && olderThan(distinct[0], api.since)) {
         problems.push(
-          `AGENTS.md documents ${api.symbol}, which the framework has from ${api.since} on, `
+          `${where} documents ${api.symbol}, which the framework has from ${api.since} on, `
           + `but the pin is ${distinct[0]}\n`
           + '    the mirrored guide is ahead of the pin: move the pin (and run `npm run check`),\n'
           + '    or a reader following the guide gets an unknown-class error with no hint why',
