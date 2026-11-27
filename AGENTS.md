@@ -55,13 +55,30 @@ as they are today — prefer them over what you remember:
   `examples` + `read_example` (a working app that already does it),
   `api_reference` (the client API, instead of guessing a method), `addons`
   (does an add-on already do it?), `app_guide` and `docs_search`.
-- **After every view change:** `validate_view` (and `fix_view`), next to
+- **After every change:** `validate_view` (and `fix_view`) for the view, and
+  `lint_abap` where your server has it (abaplint, nothing deployed), next to
   `npm run check`.
 - **Running it without a system:** `deploy_app` → `build_backend` →
   `run_app` / `screenshot_view`, then `app_act` to click through it.
 
 Not connected? Everything here still works without it — the guide, the skills
 and the gates are all in this repository.
+
+## Found a bug in abap2UI5, not in your app? Say so
+
+A defect of the framework or of its tools — shown with the smallest app that
+reproduces it (`verify_app` / `run_app` on it, or a failing `npm run check` of
+an otherwise correct class), not a question and not your own code — is worth an
+issue: the next developer and the next assistant hit the same thing. Tell the
+user, and draft it for them: `report_issue` where your MCP server has it (a
+prefilled issue link, the open issues that look like it — it posts nothing),
+otherwise the bug form of the repository it belongs to —
+[abap2UI5](https://github.com/abap2UI5/abap2UI5/issues/new?template=bug_report.yml)
+for the framework, [mcp-server](https://github.com/abap2UI5/mcp-server/issues),
+[docs](https://github.com/abap2UI5/docs/issues),
+[app-template](https://github.com/abap2UI5/app-template/issues) for this
+repository's gates and scripts. With the version (`z2ui5_if_app=>version`, the
+pin in `abaplint.jsonc`) and the reproduction as a class. The user files it.
 
 ## What to read when
 
