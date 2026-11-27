@@ -13,7 +13,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { invokedAsCommand, parseArgs, targetProblem } from '../../create/index.mjs';
+import {
+  COMMIT_API, TIMEOUT, invokedAsCommand, materialise, parseArgs, pathProblem, rawBase, resolveCommit, sourceFor, targetProblem, writeProject,
+} from '../../create/index.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, 'template.json'), 'utf8'));
@@ -102,6 +104,100 @@ test('create: refuses a class name the template refuses, and a directory that is
   assert.equal(run([CREATE, '--class', 'zcl_ok']).code, 2, 'no directory is a usage error');
   assert.equal(targetProblem(busy) !== null, true);
   assert.equal(targetProblem(path.join(base, 'not-yet')), null);
+});
+
+/* A project is fetched file by file. Read from the branch, a push landing
+ * half-way gave it files of two commits; so main is resolved to its SHA once
+ * and every file read from there. */
+test('create: main is resolved to one commit and every file is fetched from it', async () => {
+  const SHA = 'a'.repeat(40);
+  const urls = [];
+  const fetchImpl = async (url, init) => {
+    urls.push(url);
+    assert.ok(init?.signal, `${url} is fetched without a timeout`);
+    if (url === COMMIT_API) {
+      assert.equal(init.headers.accept, 'application/vnd.github.sha');
+      return new Response(`${SHA}\n`);
+    }
+    return new Response(Buffer.from(url.endsWith('template.json') ? JSON.stringify(SPEC) : 'x'));
+  };
+  const source = await sourceFor(undefined, { fetchImpl, warn: () => assert.fail('no warning when the SHA resolves') });
+  assert.equal(source.ref, SHA);
+  assert.equal(source.name, rawBase(SHA));
+  const spec = JSON.parse((await source.read('template.json')).toString('utf8'));
+  const files = await materialise(spec, source.read, { newClass: 'zcl_probe_app', newPackage: undefined, newRepo: 'probe' });
+  assert.equal(files.length, SPEC.files.shared.length + SPEC.files.named.length);
+  assert.equal(urls.filter((u) => u === COMMIT_API).length, 1, 'the SHA is resolved once');
+  for (const u of urls.filter((x) => x !== COMMIT_API)) {
+    assert.ok(u.startsWith(`https://raw.githubusercontent.com/abap2UI5/app-template/${SHA}/`), u);
+  }
+});
+
+test('create: when the commit cannot be resolved it reads main, and says so; a request that hangs times out', async (t) => {
+  for (const answer of [() => new Response('rate limited', { status: 403 }), () => new Response('<html>'), () => Promise.reject(new Error('offline'))]) {
+    const warnings = [];
+    const ref = await resolveCommit({ fetchImpl: async () => answer(), warn: (m) => warnings.push(m) });
+    assert.equal(ref, 'main');
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /could not resolve the template's main to a commit .* reading the branch main/);
+  }
+  // AbortSignal.timeout keeps no process alive - a socket would
+  const alive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(alive));
+  const saved = { ...TIMEOUT };
+  t.after(() => Object.assign(TIMEOUT, saved));
+  TIMEOUT.commit = 30;
+  TIMEOUT.file = 30;
+  const hang = async (url, init) => new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+  const warnings = [];
+  const source = await sourceFor(undefined, { fetchImpl: hang, warn: (m) => warnings.push(m) });
+  assert.equal(source.ref, 'main');
+  assert.match(warnings[0], /no answer from https:\/\/api\.github\.com\/.* within 0\.03 s/);
+  await assert.rejects(source.read('template.json'), /no answer from https:\/\/raw\.githubusercontent\.com\/abap2UI5\/app-template\/main\/template\.json within 0\.03 s/);
+});
+
+test('create: a template.json path that leads outside the project is refused before anything is read', async () => {
+  for (const bad of ['../x', 'a/../../x', '/etc/passwd', 'C:\\x', '..\\x', '']) assert.ok(pathProblem(bad), `${JSON.stringify(bad)} passed`);
+  for (const good of ['a', 'src/zcl_app_001.clas.abap', '.github/workflows/check.yml', 'a/../b']) assert.equal(pathProblem(good), null, good);
+  const spec = { ...SPEC, files: { ...SPEC.files, shared: ['../outside.txt'], named: [] } };
+  const read = async () => assert.fail('nothing is read');
+  await assert.rejects(materialise(spec, read, { newClass: 'zcl_probe_app' }), /template\.json names \.\.\/outside\.txt leads outside the project/);
+});
+
+test('create: the project is written into a temporary directory and renamed - a failure leaves nothing behind', (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'a2ui5-create-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const bytes = Buffer.from('x');
+  // 'a' is a file, so 'a/b' cannot be written - half-way through
+  const target = path.join(base, 'broken');
+  assert.throws(() => writeProject(target, [{ path: 'ok.txt', bytes }, { path: 'a', bytes }, { path: 'a/b', bytes }]));
+  assert.deepEqual(fs.readdirSync(base), [], 'no project, no temporary directory');
+  // an empty directory made for it stays, empty, when the write fails
+  fs.mkdirSync(target);
+  assert.throws(() => writeProject(target, [{ path: 'a', bytes }, { path: 'a/b', bytes }]));
+  assert.deepEqual(fs.readdirSync(base), ['broken']);
+  assert.deepEqual(fs.readdirSync(target), []);
+  assert.throws(() => writeProject(target, [{ path: '../escaped.txt', bytes }]), /outside the project/);
+  assert.ok(!fs.existsSync(path.join(base, 'escaped.txt')));
+  // and when it works, the empty directory is the project
+  writeProject(target, [{ path: 'src/a.txt', bytes }, { path: 'b.txt', bytes }]);
+  assert.deepEqual(tree(target), ['b.txt', 'src/a.txt']);
+  assert.deepEqual(fs.readdirSync(base), ['broken']);
+});
+
+test('create: --package longer than abapGit holds is refused; the default name is the directory as npm accepts it', (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'a2ui5-create-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const long = run([CREATE, path.join(base, 'x'), '--class', 'zcl_probe_app', '--package', 'p'.repeat(61), '--from', ROOT]);
+  assert.equal(long.code, 2, long.out);
+  assert.match(long.out, /--package is 61 characters long - abapGit's package description holds at most 60/);
+  assert.ok(!fs.existsSync(path.join(base, 'x')));
+  const dir = path.join(base, 'My Probe App');
+  const made = run([CREATE, dir, '--class', 'zcl_probe_app', '--package', 'p'.repeat(60), '--from', ROOT]);
+  assert.equal(made.code, 0, made.out);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).name, 'my-probe-app');
+  assert.match(fs.readFileSync(path.join(dir, '.abapgit.xml'), 'utf8'), /<NAME>my-probe-app<\/NAME>/);
+  assert.deepEqual(fs.readdirSync(base), ['My Probe App'], 'no temporary directory left next to it');
 });
 
 /* `npm create` / `npm exec` run the package through its node_modules/.bin

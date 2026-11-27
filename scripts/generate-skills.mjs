@@ -37,9 +37,13 @@
  * wrote, and `--check` fails when they disagree.
  *
  * Like generate-agents.mjs it reads the framework checkout next to this one
- * when there is one, and raw.githubusercontent.com otherwise, and SAYS SO AND
- * PASSES when neither is reachable - a template whose CI goes red because
- * github.com is unreachable is a template people delete the check from.
+ * when there is one, and raw.githubusercontent.com otherwise - and says which
+ * - and SAYS SO AND PASSES when neither is reachable on a developer's machine:
+ * a template whose check goes red because github.com is unreachable is a
+ * template people delete the check from. Under CI (the CI environment
+ * variable) `--check` FAILS instead: there a SKIPPED is a gate that checked
+ * nothing and stayed green. GENERATE_SKILLS_UPSTREAM replaces the raw URL
+ * (the tests point it at a host that does not answer).
  *
  *   node scripts/generate-skills.mjs           rewrite the files
  *   node scripts/generate-skills.mjs --check   fail if a rewrite would change
@@ -66,7 +70,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK = process.argv.includes('--check');
 const SIBLING = path.join(ROOT, '..', 'abap2UI5');
-const RAW = 'https://raw.githubusercontent.com/abap2UI5/abap2UI5/main';
+const RAW = process.env.GENERATE_SKILLS_UPSTREAM || 'https://raw.githubusercontent.com/abap2UI5/abap2UI5/main';
+/** CI: a --check that could not read upstream fails rather than passing. */
+const STRICT = CHECK && Boolean(process.env.CI) && process.env.CI !== 'false';
 const TARGET = '.claude/skills';
 const UPSTREAM = 'skills';
 const SPEC = 'template.json';
@@ -213,7 +219,8 @@ function firstDifference(a, b) {
 }
 
 async function main() {
-  const from = sibling ? 'the abap2UI5 checkout next to this one' : 'abap2UI5/main';
+  const from = sibling ? `the sibling checkout ${SIBLING}` : `upstream ${RAW}`;
+  console.log(`generate-skills: reading the framework's ${UPSTREAM}/ from ${from}`);
   let drifted = 0;
   let skipped = 0;
   let failed = 0;
@@ -261,6 +268,11 @@ async function main() {
     }
   }
 
+  if (skipped && STRICT) {
+    console.error(`generate-skills: ${skipped} of ${SKILLS.length} skills could not be read from ${from} - under CI --check fails `
+      + 'rather than pass having verified nothing (clone abap2UI5 next to this checkout, or let the job reach github.com)');
+    process.exit(1);
+  }
   if (skipped === SKILLS.length) {
     console.log(`generate-skills: SKIPPED - none of the ${SKILLS.length} skills was reachable.`);
     return;

@@ -176,7 +176,7 @@ export function checkPin({ found, distinct, problems }) {
 /** The linter version CI runs comes from the Action pin in check.yml, the one
  *  `npm run check` runs from package.json; a rule can differ between the two. */
 export function checkActionPin(actionVersion, devRange) {
-  if (!devRange) return fail('package.json has no @abap2ui5/linter devDependency', `add it: \`npm install -D @abap2ui5/linter ${RENDER_RUNTIME}\``);
+  if (!devRange) return fail('package.json has no @abap2ui5/linter in devDependencies or dependencies', `add it: \`npm install -D @abap2ui5/linter ${RENDER_RUNTIME}\``);
   if (!actionVersion) {
     return warn('check.yml names no abap2UI5/linter action version this can read (expected `uses: abap2UI5/linter@<sha> # vX.Y.Z`)',
       'keep the version tag in the comment next to the SHA pin so the pairing stays checkable');
@@ -358,6 +358,12 @@ export function listClasses(srcDir) {
     .sort();
 }
 
+/** The linter range package.json declares: a devDependency, or - as
+ *  --agent-setup accepts it - a dependency of a project that has it there. */
+export function declaredLinter(pkg) {
+  return pkg?.devDependencies?.['@abap2ui5/linter'] ?? pkg?.dependencies?.['@abap2ui5/linter'];
+}
+
 async function main() {
   const results = [];
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
@@ -380,7 +386,7 @@ async function main() {
 
   const workflow = readIf('.github/workflows/check.yml') ?? '';
   const action = /uses:\s*abap2UI5\/linter@(?:[0-9a-f]{40}\s*#\s*v?(\d+\.\d+\.\d+)|v?(\d+\.\d+\.\d+)\b)/.exec(workflow);
-  results.push(checkActionPin(action ? (action[1] || action[2]) : null, pkg.devDependencies?.['@abap2ui5/linter']));
+  results.push(checkActionPin(action ? (action[1] || action[2]) : null, declaredLinter(pkg)));
 
   const folder = sourceFolder(readIf('.abapgit.xml'));
   const srcDir = path.join(ROOT, folder);

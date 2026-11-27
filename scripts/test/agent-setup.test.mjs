@@ -288,3 +288,41 @@ test('agent-setup: the command line, and the pure pieces', () => {
   assert.equal(packageNameFor('/x/My App'), 'my-app');
   assert.equal(packageNameFor('/x/abap2UI5-samples'), 'abap2ui5-samples');
 });
+
+/* The project's package.json is the project's text: the entries go into it,
+ * it is not parsed and written again - which reordered nothing, but turned
+ * CRLF into LF, `1.0` into `1` and a one-line file into twenty. */
+test('agent-setup: package.json entries are inserted into the text - order, indentation, line endings and numbers stay', () => {
+  const tpl = JSON.stringify({ scripts: { a: 'x', b: 'y' }, devDependencies: { '@abap2ui5/linter': '^0.13.0' }, engines: { node: '>=22' } });
+  const keys = ['scripts', 'devDependencies', 'engines'];
+  const crlf = '{\r\n    "name": "mine",\r\n    "version": 1.0,\r\n    "scripts": {\r\n        "z": "first",\r\n        "a": "mine"\r\n    },\r\n    "engines": {}\r\n}\r\n';
+  const m = mergePackageJson(crlf, tpl, keys);
+  assert.equal(m.text, '{\r\n    "name": "mine",\r\n    "version": 1.0,\r\n    "scripts": {\r\n        "z": "first",\r\n        "a": "mine",\r\n        "b": "y"\r\n    },\r\n'
+    + '    "engines": {\r\n        "node": ">=22"\r\n    },\r\n    "devDependencies": {\r\n        "@abap2ui5/linter": "^0.13.0"\r\n    }\r\n}\r\n');
+  assert.deepEqual(m.added, ['scripts.b', 'devDependencies.@abap2ui5/linter', 'engines.node']);
+  assert.deepEqual(m.kept.map((k) => k.entry), ['scripts.a']);
+  // tabs, no newline at the end
+  const tabs = mergePackageJson('{\n\t"name": "t",\n\t"scripts": {\n\t\t"a": "x"\n\t}\n}', tpl, ['scripts']);
+  assert.equal(tabs.text, '{\n\t"name": "t",\n\t"scripts": {\n\t\t"a": "x",\n\t\t"b": "y"\n\t}\n}');
+  // one line stays one line
+  assert.equal(mergePackageJson('{"name":"o","scripts":{"a":"x"}}', tpl, ['scripts']).text, '{"name":"o","scripts":{"a":"x","b":"y"}}');
+  // what JSON.parse sees is what the merge decided
+  for (const text of [crlf, '{}', '{\n  "name": "n"\n}\n', '{ "scripts": {}, "dependencies": { "@abap2ui5/linter": "^0.12.0" } }']) {
+    const r = mergePackageJson(text, tpl, keys);
+    const want = JSON.parse(text);
+    for (const key of keys) {
+      for (const [k, v] of Object.entries(JSON.parse(tpl)[key])) {
+        if (want[key]?.[k] === undefined && !(key === 'devDependencies' && want.dependencies?.[k])) want[key] = { ...(want[key] || {}), [k]: v };
+      }
+    }
+    assert.deepEqual(JSON.parse(r.text), want, text);
+  }
+  assert.throws(() => mergePackageJson('{"scripts":"no"}', tpl, ['scripts']), /not an object/);
+  assert.throws(() => mergePackageJson('[]', tpl, ['scripts']), /not a JSON object/);
+});
+
+test('agent-setup: .gitignore keeps its CRLF line endings when patterns are appended', () => {
+  assert.equal(mergeLines('dist\r\nout\r\n', '# deps\nnode_modules/\n').text, 'dist\r\nout\r\n\r\n# deps\r\nnode_modules/\r\n');
+  assert.equal(mergeLines('dist', '# deps\r\nnode_modules/\r\n').text, 'dist\n\n# deps\nnode_modules/\n');
+  assert.equal(mergeLines('node_modules\r\n', 'node_modules/\r\n').text, null);
+});
