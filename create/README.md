@@ -65,6 +65,7 @@ package:
 | `.gitignore` | **Merged**: `node_modules/` and `.playwright/` |
 | `.github/workflows/check.yml` | CI: both gates and the ABAP Unit job on every pull request |
 | `scripts/check-pin.mjs`, `scripts/doctor.mjs` | `npm run check:pin` (check.yml's first step) and `npm run doctor` |
+| `scripts/add-addon.mjs`, `scripts/addons.json` | `npm run add-addon -- <repo>`: registers an addon of [abap2UI5-addons](https://abap2ui5-addons.github.io/) and what it depends on in `abaplint.jsonc`, from the snapshot of the addon catalogue next to it |
 | `.nvmrc` | The Node line the gates need |
 
 What it never does:

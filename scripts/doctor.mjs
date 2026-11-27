@@ -28,6 +28,13 @@
  * whether the installed linter has `--watch` (what `npm run watch` needs),
  * which older linter versions do not have.
  *
+ * One check is about the addons (github.com/abap2UI5-addons): an app class
+ * that names an addon's class while abaplint.jsonc does not list the addon
+ * fails `npm run check:abap` with "Class ... not found", which names the
+ * symptom - the FAIL line here names the addon and `npm run add-addon`. It
+ * reads the sources, not abaplint's output, so it needs neither the network
+ * nor a lint run.
+ *
  * The decisions are exported as pure functions and unit-tested in
  * scripts/test/doctor.test.mjs; the I/O is in main() below. This file ships
  * with every project made from the template, so it must run in a project:
@@ -39,6 +46,7 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readPinSites } from './check-pin.mjs';
+import { loadCatalog, missingAddons, stalePins } from './add-addon.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -273,6 +281,26 @@ export function checkWatch(cli, version) {
     `bump @abap2ui5/linter (the flag arrived with 0.7.0; move ${RENDER_RUNTIME} with it, they share a minor line)`);
 }
 
+/**
+ * The addons. `missing` is add-addon.mjs's missingAddons( ) - addon classes
+ * the app names that the lint config cannot resolve - and `stale` its
+ * stalePins( ): registered addons still at the release tag of a framework
+ * release the repository has moved on from. One result per finding, or one
+ * OK line.
+ */
+export function checkAddons(missing, stale) {
+  const results = missing.map((m) => fail(
+    `${m.names.join(', ')}: ${m.exact ? 'a class' : 'named like the classes'} of the addon ${m.addon.org}/${m.addon.repo}, which abaplint.jsonc does not list - \`npm run check:abap\` reports "not found" for it`,
+    `run \`npm run add-addon -- ${m.addon.repo}\` (registers it, and what it depends on, with the lint gate; on the system the addon is its own abapGit install)`));
+  for (const s of stale) {
+    results.push(warn(`abaplint.jsonc lints against ${s.addon.repo} ${s.branch}, and against abap2UI5 ${s.framework}`,
+      s.available
+        ? `run \`npm run add-addon -- ${s.addon.repo}\` - it moves the addon to its release tag ${s.framework}`
+        : `${s.addon.repo} has no release tag ${s.framework} in scripts/addons.json yet - keep ${s.branch}, or set its "branch" to \`${s.addon.branch}\``));
+  }
+  return results.length ? results : [ok('addons: no addon class is named that abaplint.jsonc does not resolve')];
+}
+
 /** The whole report's verdict: exit 1 only when something FAILed. */
 export function summarise(results) {
   const n = (s) => results.filter((r) => r.status === s).length;
@@ -372,6 +400,23 @@ async function main() {
   results.push(lintCfg === null
     ? fail('abap2ui5lint.jsonc is missing', 'the linter reads its paths, UI5 floor and severities from it - restore it from the template')
     : checkLintConfig(lintCfg, (p) => fs.existsSync(path.join(ROOT, p))));
+
+  const sources = fs.existsSync(srcDir)
+    ? fs.readdirSync(srcDir, { recursive: true }).map((f) => String(f).split(path.sep).join('/')).filter((f) => f.endsWith('.abap')).sort()
+    : [];
+  const own = new Set(sources.map((f) => path.posix.basename(f).split('.')[0].toLowerCase()));
+  const lintConfig = readIf('abaplint.jsonc');
+  if (lintConfig !== null) {
+    try {
+      const catalog = loadCatalog();
+      results.push(...checkAddons(
+        missingAddons(sources.map((f) => ({ file: f, text: fs.readFileSync(path.join(srcDir, f), 'utf8') })), lintConfig, catalog, own),
+        stalePins(lintConfig, catalog),
+      ));
+    } catch (err) {
+      results.push(warn(`the addon check did not run (${err.message})`, 'restore scripts/addons.json from the template - `npm run add-addon` reads it too'));
+    }
+  }
 
   results.push(checkExtension(listExtensions()));
 

@@ -72,6 +72,14 @@ jobs:
       - name: Agent skills mirror
         run: node scripts/generate-skills.mjs --check
 
+      # scripts/addons.json - what `npm run add-addon` knows about the addons -
+      # is a snapshot of the addon catalogue. The catalogue half is compared
+      # here (a repository cutting a release tag must not turn this red; the
+      # daily sync carries that), and the run says so and passes when the
+      # catalogue is not reachable.
+      - name: Addon snapshot
+        run: node scripts/sync-addons.mjs --check
+
       # create/ (the `npm create abap2ui5-app` package) ships a byte-equal copy
       # of scripts/lib/substitute.mjs, the substitution code rename.mjs runs.
       - name: The create package's substitution copy

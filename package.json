@@ -5,6 +5,7 @@
   "description": "abap2UI5 app project - the gates that check it without an SAP system.",
   "scripts": {
     "check": "npm run check:abap && npm run check:abap2ui5",
+    "add-addon": "node scripts/add-addon.mjs",
     "check:abap": "abaplint abaplint.jsonc",
     "check:abap2ui5": "abap2ui5lint",
     "check:abap2ui5:fast": "abap2ui5lint --no-render",

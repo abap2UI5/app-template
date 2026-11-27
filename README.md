@@ -33,6 +33,10 @@ AI agents.
 - **`npm run doctor`** — an offline check of the machine and the repository:
   Node, both gates, a Chromium the render gate can launch, the pins, every
   `.clas.xml` sidecar, the lint config — one line per check with the remedy
+- **`npm run add-addon -- <repo>`** — an app that calls a class of an
+  [addon](https://abap2ui5-addons.github.io/) (popups, layout-management,
+  range-filter, …) needs the lint gate to know the addon: this registers it,
+  and everything it depends on, in `abaplint.jsonc`
 - **`.mcp.json`, `.devcontainer/`, `.vscode/extensions.json`** — the abap2UI5
   MCP server registered for Claude Code, a dev container with everything
   installed on create, and the editor's extension recommendations
@@ -157,6 +161,7 @@ npm run watch:render            # the watch with the render gate on, one warm br
 npm run test:unit               # the ABAP Unit tests, run in the transpiled backend without a system
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release named in one place only
+npm run add-addon -- popups     # register an addon (and what it needs) with the lint gate
 npm run doctor                  # when something above fails: what is missing, and the command that fixes it
 ```
 
@@ -165,7 +170,8 @@ npm run doctor                  # when something above fails: what is missing, a
 where the render gate will look (`npx playwright install chromium` otherwise),
 the framework pin (through `check-pin`), the linter Action pin in `check.yml`
 against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`,
-`WITH_UNIT_TESTS` for a class with tests), `abap2ui5lint.jsonc`, and — never
+`WITH_UNIT_TESTS` for a class with tests), `abap2ui5lint.jsonc`, an addon
+class the app names that `abaplint.jsonc` does not resolve, and — never
 failing — whether VS Code has the abap2UI5 extension, whether the pinned
 framework satisfies the linter's compatibility record, when it ships one, and
 whether the installed linter has `--watch`.
@@ -182,6 +188,31 @@ framework release in `abaplint.jsonc` is a tag inside an abaplint dependency,
 which Dependabot cannot read, and the same number is repeated in this README
 and in `AGENTS.md`. It fails when the three disagree, and tells you (without
 failing) when a newer framework release is out.
+
+### Addons
+
+The [addons](https://abap2ui5-addons.github.io/) — finished popups, saved
+table layouts, selection screens, locks — are repositories of their own, and
+`abaplint.jsonc` resolves the framework alone. So the first call to
+`z2ui5_cl_popup_to_confirm=>factory( )` ends in *Class
+z2ui5_cl_popup_to_confirm not found*, and `npm run doctor` says why:
+
+```bash
+npm run add-addon -- popups          # registers layout-management, then popups
+npm run add-addon -- --list          # the addons, what each is for and needs
+```
+
+`add-addon` writes one `dependencies` entry per addon (dependencies of the
+addon first, comments and formatting of the file untouched, the 7.02 config
+`.github/abaplint/abap_702.jsonc` kept in step) and prints the abapGit install
+order — on a system every addon is a separate install next to abap2UI5. An
+addon that carries a release tag equal to the pinned framework release is
+pinned to it; one that does not follows its default branch, and the output
+says **NOT pinned** — abaplint's `"branch"` goes to `git clone -b`, which
+takes a branch or a tag and never a commit. The facts come from
+`scripts/addons.json`, a snapshot of the catalogue's
+[`addons.json`](https://abap2ui5-addons.github.io/addons.json) that the
+template refreshes daily (`node scripts/sync-addons.mjs`, template-only).
 
 Settings (paths, UI5 floor, distribution, rule severities, fail level) live in
 `abap2ui5lint.jsonc`; every rule id is documented at

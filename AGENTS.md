@@ -20,7 +20,8 @@ with the validation gates preconfigured.
 | `scripts/check-702.mjs`, `.github/abaplint/abap_702.jsonc` | `node scripts/check-702.mjs` — does the app downport to NetWeaver 7.02? A temporary copy of `src/` downported with `abaplint --fix` against the framework's `-702` release and linted at v702; your tree is never touched |
 | `.github/scripts/rename.mjs` | abap2UI5's namespace rename, for a system where the framework is installed renamed: `node .github/scripts/rename.mjs --name /CA2UI5/ --out build/renamed` writes `src/` with every `z2ui5_` reference renamed and your own `zcl_`/`zcx_`/`zif_` objects moved into the same namespace (`package.json` `config.renameOwn`); without `--name` it checks the longest name the framework allows. Not the template's `scripts/rename.mjs` |
 | `scripts/check-pin.mjs` | `npm run check:pin` — the framework release above is written in more than one place and no tool moves it; this fails when they disagree and notices (without failing) when a newer release is out |
-| `scripts/doctor.mjs` | `npm run doctor` — offline environment check, one line per finding with its remedy: Node version, both gates installed and on one minor line, a Chromium the render gate can launch, the framework pin, the linter Action pin against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`, `WITH_UNIT_TESTS`), `abap2ui5lint.jsonc`, the VS Code extension, the linter's compatibility record, whether the installed linter has `--watch`. Exit 1 only on FAIL |
+| `scripts/add-addon.mjs`, `scripts/addons.json` | `npm run add-addon -- <repo>` — registers an addon of [abap2UI5-addons](https://abap2ui5-addons.github.io/) (`popups`, `range-filter`, …) and everything it depends on in `abaplint.jsonc`, from a vendored snapshot of the addon catalogue — see "Addons" below |
+| `scripts/doctor.mjs` | `npm run doctor` — offline environment check, one line per finding with its remedy: Node version, both gates installed and on one minor line, a Chromium the render gate can launch, the framework pin, the linter Action pin against the devDependency, every `.clas.xml` sidecar (BOM, LF, `CLSNAME`, `WITH_UNIT_TESTS`), `abap2ui5lint.jsonc`, an addon class the app names that `abaplint.jsonc` does not resolve, the VS Code extension, the linter's compatibility record, whether the installed linter has `--watch`. Exit 1 only on FAIL |
 | `.claude/skills/` | Four agent skills mirrored from the framework — `build-an-app`, `view-chain-layout`, `abap-check`, `ui5-check` — loaded on demand by Claude Code and any agent that reads `SKILL.md` files. Generated (each file says so on its first line); "this repository" in their text is the framework's |
 | `.claude/settings.json`, `.mcp.json` | The permission allowlist for autonomous sessions, and the abap2UI5 MCP server registered for Claude Code (`npx --yes @abap2ui5/mcp-server`). The VS Code extension registers the same server for Copilot itself |
 | `.devcontainer/`, `.vscode/extensions.json` | A dev container (Node 22, both gates and Chromium installed on create, the abap2UI5, abaplint and Claude Code extensions) and the editor's extension recommendations |
@@ -40,6 +41,7 @@ npm run watch:render            # the same with the render gate, one warm browse
 npm run test:unit               # the ABAP Unit tests in the transpiled backend - no system (see Testing an app)
 npm run fix                     # apply the linter's mechanical corrections
 npm run check:pin               # the framework release this repo names, in one place
+npm run add-addon -- popups     # an app calls an addon class: register the addon with the lint gate
 npm run check:all               # everything CI runs: the pin, then both gates
 npm test                        # the same as `npm run check:all`
 ```
@@ -47,8 +49,9 @@ npm test                        # the same as `npm run check:all`
 When a gate fails in a way that names a symptom rather than a cause — a
 syntax error inside `node_modules` (old Node), "browser not found" (no
 Chromium), a rule CI has and your run does not (Action pin and devDependency
-on different minor lines) — `npm run doctor` says which, and what to run. It
-is offline and takes a second.
+on different minor lines), "Class z2ui5_cl_popup_... not found" (an addon the
+lint gate was never told about) — `npm run doctor` says which, and what to
+run. It is offline and takes a second.
 
 `npm run watch` is `abap2ui5lint --watch --no-render`: the static check once,
 then again on every save under `src/` (and on an edit to
@@ -87,6 +90,51 @@ carries `<WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>` after `<UNICODE>`, which is how
 abapGit serializes one); class names stay in `ZCL_*`/`ZCX_*`, which is both
 `object_naming` in `abaplint.jsonc` and the rule the rename step enforces; the
 whole repo is in English.
+
+## Addons
+
+`abaplint.jsonc` lists what abaplint clones to resolve the classes an app
+calls, and out of the box that is the framework alone. A class of an addon
+([abap2UI5-addons](https://abap2ui5-addons.github.io/): `z2ui5_cl_popup_to_confirm`
+of popups, `z2ui5_cl_layo_manager` of layout-management, …) therefore fails
+`npm run check:abap` with **"Class ... not found" — which says the gate does
+not know the addon, not that the call is wrong.** `npm run doctor` names the
+addon; this registers it:
+
+```bash
+npm run add-addon -- popups          # popups, and layout-management, which it needs
+npm run add-addon -- --list          # every addon: what it is for, its classes, what it needs
+npm run add-addon -- popups --dry    # what would change, nothing written
+```
+
+It inserts one entry per addon into `dependencies` — the addon's own
+dependencies first, each once, nothing else in the file touched — and does
+the same in `.github/abaplint/abap_702.jsonc`. A second run changes nothing.
+
+**The pin.** abaplint clones a dependency with `git clone --depth 1 -b
+<branch>`, and `-b` takes a branch or a tag, never a commit. So an addon that
+carries a release tag equal to the framework release pinned here (today
+popups, layout-management, table-maintenance and the two custom-controls
+repositories, each with the tag and its `-702` twin) is pinned to that tag, and a later run moves it
+along when the framework pin moved. An addon without that tag follows its
+default branch (`main`, for some `standard`; `702` in the 7.02 config) and the
+output and the comment in the file say **NOT pinned**: that lint can change
+without a commit here. To hold such an addon at a commit, check it out
+yourself at the entry's `"folder"` — abaplint reads a dependency from there
+when the folder holds files and skips the clone.
+
+**On the system an addon is a separate install.** It is a repository of its
+own, pulled with abapGit after abap2UI5 and after what it depends on; the run
+ends with that order. An app that calls an addon does not activate on a
+system that has not pulled it — say which addons the app needs.
+
+What the script knows is `scripts/addons.json`, a snapshot of the addon
+catalogue (<https://abap2ui5-addons.github.io/addons.json>: `useWhen`,
+`entryPoints`, `dependsOn`) and of each addon's branches and tags, so it works
+offline and decides the same thing every time. The template refreshes it
+daily; take a newer one by copying the file from the template's `main`.
+`npm run test:unit` installs the framework alone — a test that reaches into
+an addon class needs a system.
 
 ## Testing an app
 

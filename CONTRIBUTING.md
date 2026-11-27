@@ -13,11 +13,12 @@ npm run check:all                       # what a project made from this gets: th
 node scripts/check-template.mjs         # template.json still describes this repository
 node scripts/generate-agents.mjs --check # the mirrored half of AGENTS.md matches the guide
 node scripts/generate-skills.mjs --check # the four .claude/skills match the framework's
+node scripts/sync-addons.mjs --check    # scripts/addons.json matches the addon catalogue
 node scripts/sync-create.mjs --check    # create/ carries the current substitution code
 node --test scripts/test/*.test.mjs     # the scripts, and the claims they make about these files
 ```
 
-The last five need no install and run in seconds.
+The last six need no install and run in seconds.
 
 **Why the split.** The first block is the project's; the second is the
 template's. `package.json` and `.github/workflows/check.yml` are both handed
@@ -45,6 +46,13 @@ Two things in this repository are abap2UI5's text, not ours: the half of
 (`scripts/generate-skills.mjs`, from the framework's `.claude/skills/`). They
 drift whenever abap2UI5 changes the guide or a skill, which no commit here
 triggers on.
+
+A third file is a snapshot of somebody else's facts: `scripts/addons.json`,
+what `npm run add-addon` knows about the addons - written by
+`scripts/sync-addons.mjs` from the addon catalogue
+(abap2UI5-addons/abap2UI5-addons.github.io) and from each addon's branches and
+tags. Its `--check` compares the catalogue half only, so a repository cutting
+a release tag does not turn a pull request here red.
 
 `.github/workflows/sync-mirrors.yml` carries that drift. Daily (and from the
 Actions tab) it clones abap2UI5 `main` next to the checkout, runs both
