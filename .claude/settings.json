@@ -13,6 +13,7 @@
       "Bash(npm run test:unit)",
       "Bash(npm run check:pin)",
       "Bash(npm run doctor)",
+      "Bash(npm run add-addon:*)",
       "Bash(node scripts/rename.mjs:*)",
       "Bash(npx abaplint:*)",
       "Bash(npx abap2ui5lint:*)",
