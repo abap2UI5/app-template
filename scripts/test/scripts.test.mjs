@@ -236,6 +236,38 @@ test('generate-skills: the copies are in sync, or the framework is unreachable',
   assert.equal(code, 0, out);
 });
 
+/* A SKIPPED --check is green and verified nothing. On a developer's machine
+ * that is the right answer to "github.com is unreachable"; under CI it is a
+ * gate that silently stopped checking. */
+test('generate-skills: --check says which source it read, and under CI fails when upstream cannot be read', (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'a2ui5-skills-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  // a copy with no abap2UI5 checkout next to it, reading an upstream that does not answer
+  const repo = path.join(base, 'repo');
+  fs.mkdirSync(path.join(repo, 'scripts'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'scripts/generate-skills.mjs'), path.join(repo, 'scripts/generate-skills.mjs'));
+  fs.copyFileSync(path.join(ROOT, 'template.json'), path.join(repo, 'template.json'));
+  const check = (ci) => {
+    const env = { ...process.env, GENERATE_SKILLS_UPSTREAM: 'http://127.0.0.1:9', CI: ci };
+    try {
+      return { code: 0, out: execFileSync(process.execPath, [path.join(repo, 'scripts/generate-skills.mjs'), '--check'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env }) };
+    } catch (err) {
+      return { code: err.status ?? 1, out: `${err.stdout || ''}${err.stderr || ''}` };
+    }
+  };
+  const local = check('');
+  assert.equal(local.code, 0, local.out);
+  assert.match(local.out, /reading the framework's skills\/ from upstream http:\/\/127\.0\.0\.1:9/);
+  assert.match(local.out, /SKIPPED - none of the 4 skills was reachable/);
+  const ci = check('true');
+  assert.equal(ci.code, 1, ci.out);
+  assert.match(ci.out, /4 of 4 skills could not be read .* under CI --check fails/);
+  assert.equal(check('false').code, 0, 'CI=false is not CI');
+  // this checkout names its source too
+  const here = run('generate-skills.mjs', ['--check']);
+  assert.match(here.out, /reading the framework's skills\/ from (the sibling checkout .*abap2UI5|upstream https:\/\/raw\.githubusercontent\.com\/)/);
+});
+
 test('generate-skills: every skill ships split - a short SKILL.md and the references it names', async () => {
   const { SKILLS, SKILL_DEVIATIONS, GUIDE_REFERENCE, referencesOf } = await import('../generate-skills.mjs');
   assert.equal(SKILLS.length, 4, 'expected four skills declared');

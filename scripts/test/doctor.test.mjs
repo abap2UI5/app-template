@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   parseVersion, cmpVersion, sameMinor, parseJsonc,
-  checkNode, checkInstalled, checkSameMinor, checkChromium, checkPin, checkActionPin,
+  checkNode, checkInstalled, checkSameMinor, checkChromium, checkPin, checkActionPin, declaredLinter,
   checkSidecar, sourceFolder, checkLintConfig, checkExtension, checkCompat, checkWatch, summarise,
   listClasses,
 } from '../doctor.mjs';
@@ -114,6 +114,14 @@ test('doctor: the Action pin - a different minor line is a WARN, an unreadable o
   assert.equal(checkActionPin('0.5.1', '^0.6.1').status, 'WARN');
   assert.equal(checkActionPin(null, '^0.6.1').status, 'WARN');
   assert.equal(checkActionPin('0.6.1', undefined).status, 'FAIL');
+});
+
+test('doctor: the linter is read from devDependencies, else dependencies - as --agent-setup accepts it', () => {
+  assert.equal(declaredLinter({ devDependencies: { '@abap2ui5/linter': '^0.13.0' } }), '^0.13.0');
+  assert.equal(declaredLinter({ dependencies: { '@abap2ui5/linter': '^0.12.0' } }), '^0.12.0');
+  assert.equal(declaredLinter({ devDependencies: { '@abap2ui5/linter': '^0.13.0' }, dependencies: { '@abap2ui5/linter': '^0.12.0' } }), '^0.13.0');
+  assert.equal(declaredLinter({}), undefined);
+  assert.equal(checkActionPin('0.12.1', declaredLinter({ dependencies: { '@abap2ui5/linter': '^0.12.0' } })).status, 'OK');
 });
 
 test('doctor: the Action pin pattern still reads check.yml', () => {

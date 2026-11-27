@@ -25,8 +25,8 @@ project's directory instead - see
 | --- | --- |
 | `<dir>` | The project directory. Must not exist yet, or be empty. With `--agent-setup`: an existing project's directory, default `.` |
 | `--class <zcl_your_app>` | **Required.** The app class, lower case: `^zcl_` or `^zcx_`, at most 30 characters - the rule the template's `abaplint.jsonc` enforces, so the project passes its own gate on the first run |
-| `--package "Your App"` | The ABAP package description abapGit shows (`CTEXT` in `src/package.devc.xml`) |
-| `--repo <name>` | The repository name written to `.abapgit.xml` and `package.json`. Default: the directory's name |
+| `--package "Your App"` | The ABAP package description abapGit shows (`CTEXT` in `src/package.devc.xml`), at most 60 characters |
+| `--repo <name>` | The repository name written to `.abapgit.xml` and `package.json`. Default: the directory's name, lower case in the characters npm accepts |
 | `--from <checkout>` | Read the template from a local `abap2UI5/app-template` checkout instead of fetching it from GitHub |
 | `--agent-setup` | Add the template's agent setup and gates to an **existing** project instead of creating one - [below](#adding-the-agent-setup-to-an-existing-project). Takes no `--class`, `--package` or `--repo` |
 
@@ -77,8 +77,10 @@ What it never does:
 - **change a value in `package.json` or `.gitignore`.** A script,
   devDependency or `engines` entry you lack is added; one you have keeps its
   value, and the output names every one that differs from the template's. A
-  package you list under `dependencies` counts as present. Without a
-  `package.json` you get a new one under your directory's name.
+  package you list under `dependencies` counts as present. The entries are
+  inserted into your file's text - its order, indentation and line endings
+  stay as they are. Without a `package.json` you get a new one under your
+  directory's name.
 
 It reads `STARTING_FOLDER` from your `.abapgit.xml`: with `/abap/src/`, the
 gates check `abap/src/` - `abaplint.jsonc`'s `global.files`,
@@ -113,11 +115,15 @@ execute the same description: the template's
 [`template.json`](https://github.com/abap2UI5/app-template/blob/main/template.json)
 says which files a project gets and which text in them carries a name.
 
-This package carries no list of its own. At run time it fetches
-`template.json` and every file it names from the template's `main` branch,
-applies the substitutions (the class in both spellings, the package text, the
-repository name) and writes the result - as bytes, so the UTF-8 BOM abapGit
-expects on every `.xml` sidecar survives. The substitution code is a copy of
+This package carries no list of its own. At run time it resolves the
+template's `main` branch to its commit (GitHub's API; when that cannot answer
+it reads `main` itself and warns), fetches `template.json` and every file it
+names from that one commit, applies the substitutions (the class in both
+spellings, the package text, the repository name) and writes the result - as
+bytes, so the UTF-8 BOM abapGit expects on every `.xml` sidecar survives -
+into a temporary directory next to yours, renamed into place at the end: a
+failure leaves nothing half-written behind. A path in `template.json` that
+would lead outside the project is refused. The substitution code is a copy of
 the template's `scripts/lib/substitute.mjs`, held byte-equal by the template's
 own CI.
 
