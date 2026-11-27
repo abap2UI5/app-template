@@ -1,4 +1,7 @@
 {
+  "enabledMcpjsonServers": [
+    "abap2ui5"
+  ],
   "permissions": {
     "allow": [
       "Bash(npm ci)",
