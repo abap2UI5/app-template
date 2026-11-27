@@ -154,7 +154,8 @@ Done. Next:
 
 Then deploy the repository into your system with abapGit (https://abapgit.org/)
 and start the app with <icf-endpoint>?app_start=${newClass.toUpperCase()}.
-AGENTS.md is the complete app-building reference; README.md is yours to write.
+AGENTS.md briefs an agent (and you): the repository, the essentials of building
+an app, and where the full guide is; README.md is yours to write.
 `;
 }
 

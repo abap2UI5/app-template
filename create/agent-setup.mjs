@@ -4,7 +4,7 @@
  * The other mode of create-abap2ui5-app, for the project that already exists.
  * Most abap2UI5 projects never started from abap2UI5/app-template - they are
  * an abapGit repository with a src/ folder - and the template's agent setup
- * (AGENTS.md, the four skills, the MCP server, the permission allowlist) is
+ * (AGENTS.md, the four skills with the guide, the MCP server, the permission allowlist) is
  * worth as much there. So this adds THAT part of the template, and the two
  * gates and the CI job the setup tells an agent to run, to a directory that
  * already has a project in it.
@@ -329,10 +329,12 @@ export async function pinProblems(dir, templateCheckPin) {
 export function agentSetupNextSteps(dir, { folder, wroteAgents }) {
   const agents = wroteAgents
     ? `
-AGENTS.md's first section ("This repository") describes a project made from
-the template - zcl_app_001 in src/. Rewrite it for this one and keep
-everything from "1. The model in one paragraph" down: that half is the
-app-building reference, and it is the same for every abap2UI5 app.
+AGENTS.md's first part ("This repository", and docs/project.md, its long
+form) describes a project made from the template - zcl_app_001 in src/.
+Rewrite it for this one and keep the block between the two guide-essentials
+marker lines: it is cut out of the framework's app-building guide, which is
+.claude/skills/build-an-app/references/building-apps.md, and it is the same
+for every abap2UI5 app.
 `
     : '';
   const cd = dir === '.' ? '' : `\n  cd ${dir}`;

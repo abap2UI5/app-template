@@ -23,13 +23,17 @@ AI agents.
   abaplint from this repo's `package-lock.json`, the view checks through the
   linter's own GitHub Action (`abap2UI5/linter`, SHA-pinned), which brings the
   UI5 runtime and the browser the render gate needs
-- **`AGENTS.md`** — the complete app-building reference for AI assistants,
-  plus a `.claude/settings.json` permission allowlist so autonomous sessions
-  run the gates without prompts
+- **`AGENTS.md`** — what an AI assistant reads first, kept to a page and a
+  half: the repository, the gates, and the essentials of building an app, cut
+  out of the framework's guide. Plus a `.claude/settings.json` permission
+  allowlist so autonomous sessions run the gates without prompts
 - **`.claude/skills/`** — the framework's four agent skills (`build-an-app`,
   `view-chain-layout`, `abap-check`, `ui5-check`), mirrored here so an agent
   in your project loads the catalogue of what a green CI does not catch
-  without a framework checkout
+  without a framework checkout — each a short `SKILL.md` with its long
+  sections as files under `references/`, read one at a time. The complete
+  app-building guide is one of them:
+  `.claude/skills/build-an-app/references/building-apps.md`
 - **`npm run doctor`** — an offline check of the machine and the repository:
   Node, both gates, a Chromium the render gate can launch, the pins, every
   `.clas.xml` sidecar, the lint config — one line per check with the remedy
@@ -66,7 +70,7 @@ as much there. Run, in that project's directory:
 npm create abap2ui5-app@latest -- --agent-setup
 ```
 
-It adds `AGENTS.md`, `CLAUDE.md`, `.claude/` (the skills and the permission
+It adds `AGENTS.md`, `docs/project.md`, `CLAUDE.md`, `.claude/` (the skills and the permission
 allowlist), `.mcp.json`, the two gates' configs, the `npm run check*` scripts
 and `check.yml` — never touching your classes, never overwriting a file you
 have (it skips it and says so), only adding to your `package.json` and
@@ -260,10 +264,12 @@ skips test includes, so `npm run check` stays the gate it is.
 A project made from this template is ready for an AI agent as it stands,
 with nothing to install for it:
 
-- **`AGENTS.md`** — the app-building reference, read by any agent that
-  follows the AGENTS.md convention (`CLAUDE.md` points Claude Code at it)
+- **`AGENTS.md`** — the briefing, read by any agent that follows the
+  AGENTS.md convention (`CLAUDE.md` points Claude Code at it): about 11 KB,
+  where it used to be 75 KB with the whole guide inlined. It says which file
+  to read for what
 - **`.claude/skills/`** — the framework's four skills, loaded by Claude Code
-  on demand
+  on demand, with the full guide as a reference of `build-an-app`
 - **`.mcp.json`** — the abap2UI5 MCP server, registered for Claude Code
 
 Working on abap2UI5 apps outside a project made from this template? The
@@ -276,7 +282,10 @@ framework repository also publishes a Claude Code plugin:
 
 ## Learn more
 
-- [AGENTS.md](AGENTS.md) — the complete app-building reference (also for humans)
+- [AGENTS.md](AGENTS.md) — the briefing, and
+  [the complete app-building guide](.claude/skills/build-an-app/references/building-apps.md)
+  (also for humans); [docs/project.md](docs/project.md) — this repository's
+  files and gates in detail
 - [Documentation](https://abap2ui5.github.io/docs/) — the rendered docs site
 - [Samples](https://github.com/abap2UI5/samples) — curated example apps
   (bindings, events, popups, navigation)

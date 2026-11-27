@@ -1,36 +1,43 @@
 #!/usr/bin/env node
 /*
- * generate-agents — the mirrored half of AGENTS.md is PRODUCED, not maintained.
+ * generate-agents — what this repository carries of abap2UI5's app-building
+ * guide is PRODUCED, not maintained: the guide as one file, and its
+ * essentials in AGENTS.md.
  *
- * AGENTS.md is two documents in one file. Everything above
- * "## 1. The model in one paragraph" is this repository's own — what the files
- * are, how to run the gates, how `template.json` works. Everything from that
- * heading down is abap2UI5's app-building guide, `docs/agents/building-apps.md`,
- * carried here so a new project can brief an agent without a framework
- * checkout.
+ * AGENTS.md used to be two documents in one file: this repository's own part,
+ * and below it the whole of `docs/agents/building-apps.md` - 65 KB, about
+ * 16 000 tokens, which every agent paid before writing a line, whatever the
+ * task. It is now this repository's own part plus a short generated block:
  *
- * That second half used to be a hand-kept transcription of 560 lines, and it
- * had drifted in BOTH directions within a fortnight of being written — the
- * dispatcher branches in the wrong order over here, a corpus count and a claim
- * about samples' baseline stale over there. The file said it was a mirror; a
- * paragraph asked people not to edit it; nothing checked either.
+ *   .claude/skills/build-an-app/references/building-apps.md
+ *       the guide from "1. The model in one paragraph" down, whole, with its
+ *       declared deviations applied. THE one copy in a project; the
+ *       build-an-app skill points at it (`references/building-apps.md` next
+ *       to its SKILL.md), and so does AGENTS.md.
  *
- * abap2UI5 added a gate for it (`shared-file-gate.mjs`), which catches drift
- * after somebody has typed it. This closes the other half of the loop: the
- * mirror is now generated from the guide, so there is nothing to type.
+ *   AGENTS.md, between the two `guide-essentials` marker lines
+ *       the passages the guide marks `<!-- essentials:<id> -->` - the model,
+ *       the canonical template, the names that changed, a few rules - cut out
+ *       word for word, and a table of the guide's sections. Extracted, never
+ *       retold: there is no sentence in that block somebody here wrote about
+ *       the framework. Everything outside the two marker lines is this
+ *       repository's (and, in a project, the project's) and is copied through
+ *       untouched.
  *
- *   node scripts/generate-agents.mjs           rewrite the mirrored half
+ *   node scripts/generate-agents.mjs           rewrite both
  *   node scripts/generate-agents.mjs --check   fail if a rewrite would change
  *                                              anything (this is what CI runs)
  *
- * THREE SENTENCES DEVIATE, because the guide names commands and files that
+ * A FEW SENTENCES DEVIATE, because the guide names commands and files that
  * exist in the framework repository and not in a project made from this
  * template. They are declared in `scripts/app-guide-deviations.mjs`, which is
  * not a file of this repository either: it is abap2UI5's
  * `.github/shared/app-guide-deviations.mjs`, copied here and gated byte-equal,
- * because abap2UI5's gate applies the same list to COMPARE while this applies
- * it to WRITE. Two transcriptions of one substitution list would put the drift
- * back, one level further down.
+ * because abap2UI5's gate applies the same list - and the same
+ * `renderEssentials` - to COMPARE while this applies them to WRITE. Two
+ * transcriptions of one substitution list would put the drift back, one level
+ * further down. The guide file's header lists the deviations, written from
+ * the declaration, so the list a reader sees cannot go stale either.
  *
  * So after a change here BOTH have to be green: this script's `--check`, and
  * abap2UI5's `npm run check:shared`. They are deliberately the same comparison
@@ -38,108 +45,147 @@
  * by whoever edits the guide, and neither has to remember the other exists.
  *
  * A deviation whose sentence is no longer in the guide FAILS rather than being
- * skipped: it means somebody upstream edited a sentence this repository is
- * known to reword, and the two have to be reconciled by hand.
+ * skipped, and so does an essentials passage the guide no longer marks: it
+ * means somebody upstream edited something this repository is known to use,
+ * and the two have to be reconciled by hand.
  *
  * Where the guide is read from, in order:
  *   an abap2UI5 CHECKOUT next to this one    (offline, and what a local run sees)
  *   raw.githubusercontent.com/abap2UI5/abap2UI5/main
- * When neither is reachable the run SAYS SO and passes, writing nothing. This
- * file is copied into every repository made from this template, and a template
- * whose CI goes red because github.com is unreachable is a template people
- * delete the check from — the same rule `check-pin.mjs` states at more length.
+ * When neither is reachable the run SAYS SO and passes, writing nothing. A
+ * template whose CI goes red because github.com is unreachable is a template
+ * people delete the check from — the same rule `check-pin.mjs` states at more
+ * length.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyGuideDeviations, guideBody, GUIDE_HEADING } from './app-guide-deviations.mjs';
+import {
+  applyGuideDeviations, guideBody, renderEssentials, essentialsBlock,
+  GUIDE_DEVIATIONS, TEMPLATE_GUIDE_FILE, ESSENTIALS_BEGIN, ESSENTIALS_END,
+} from './app-guide-deviations.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const AGENTS = path.join(ROOT, 'AGENTS.md');
-const CHECK = process.argv.includes('--check');
-
 const SOURCE = 'docs/agents/building-apps.md';
 const SIBLING = path.join(ROOT, '..', 'abap2UI5', SOURCE);
 const RAW = `https://raw.githubusercontent.com/abap2UI5/abap2UI5/main/${SOURCE}`;
 
-let guide = null;
-let from = '';
-if (fs.existsSync(SIBLING)) {
-  guide = fs.readFileSync(SIBLING, 'utf8');
-  from = 'the abap2UI5 checkout next to this one';
-} else {
-  try {
-    const res = await fetch(RAW, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    guide = await res.text();
-    from = 'abap2UI5/main';
-  } catch (err) {
-    console.log(`generate-agents: the guide is not reachable (${err.message})`);
-    console.log(CHECK ? 'SKIPPED: nothing was verified.' : 'SKIPPED: nothing was written.');
-    process.exit(0);
+/** The guide file a project gets: a header saying what it is and what was
+ *  reworded, then the guide from section 1 down. `body` is the guide with its
+ *  deviations applied. */
+export function renderGuideFile(body) {
+  const quote = (s) => s.replace(/\s*\n\s*/g, ' ');
+  return [
+    `<!-- GENERATED by scripts/generate-agents.mjs in abap2UI5/app-template from ${SOURCE} in abap2UI5/abap2UI5 - "this repository" in the text is the framework's. Do not edit; regenerate. -->`,
+    '',
+    '# Building apps with abap2UI5 — the guide',
+    '',
+    `> The framework's app-building guide, whole: a mirror of \`${SOURCE}\` in`,
+    '> [abap2UI5/abap2UI5](https://github.com/abap2UI5/abap2UI5) from its section 1',
+    '> down, generated so a project needs no framework checkout. It is the one',
+    '> copy in this repository: `AGENTS.md` carries the essentials cut out of it',
+    '> and a table of its sections, the `build-an-app` skill is its checklist.',
+    '> Fix it upstream (a gate there checks it against the real client API);',
+    '> a regeneration overwrites this file.',
+    '>',
+    `> ${GUIDE_DEVIATIONS.length} sentences are reworded on purpose, because the guide names commands and`,
+    '> files of the framework repository that a project does not have. Each is',
+    '> declared (`.github/shared/app-guide-deviations.mjs` there) and applied by',
+    '> the generator and by the framework\'s own gate:',
+    '>',
+    ...GUIDE_DEVIATIONS.flatMap(([from, to], i) => [`> ${i + 1}. "${quote(from)}"`, `>    reads: "${quote(to)}"`]),
+    '',
+    body.replace(/\s*$/, ''),
+    '',
+  ].join('\n');
+}
+
+/** AGENTS.md with the block between the two marker lines replaced. Throws
+ *  when the markers are not there - without them there is no way to tell
+ *  which part may be rewritten. */
+export function replaceEssentials(agents, block) {
+  essentialsBlock(agents); // throws when the block is missing
+  const begin = agents.indexOf(ESSENTIALS_BEGIN);
+  const end = agents.indexOf(ESSENTIALS_END);
+  return `${agents.slice(0, begin + ESSENTIALS_BEGIN.length)}\n\n${block}\n\n${agents.slice(end)}`;
+}
+
+function firstDifference(current, next) {
+  const a = current.split('\n');
+  const b = next.split('\n');
+  const line = a.findIndex((l, i) => l !== b[i]);
+  return line === -1
+    ? `same first ${Math.min(a.length, b.length)} line(s), then one version ends`
+    : `first difference at line ${line + 1}\n    here:      ${JSON.stringify(a[line] ?? '<end of file>')}\n    the guide: ${JSON.stringify(b[line] ?? '<end of file>')}`;
+}
+
+async function main() {
+  const CHECK = process.argv.includes('--check');
+  let guide = null;
+  let from = '';
+  if (fs.existsSync(SIBLING)) {
+    guide = fs.readFileSync(SIBLING, 'utf8');
+    from = 'the abap2UI5 checkout next to this one';
+  } else {
+    try {
+      const res = await fetch(RAW, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      guide = await res.text();
+      from = 'abap2UI5/main';
+    } catch (err) {
+      console.log(`generate-agents: the guide is not reachable (${err.message})`);
+      console.log(CHECK ? 'SKIPPED: nothing was verified.' : 'SKIPPED: nothing was written.');
+      return;
+    }
   }
-}
 
-/* The two halves of this file, split at the heading the guide's mirrored part
- * begins with. Anything above it is this repository's own and is copied
- * through untouched — including the provenance block, which is what tells a
- * reader of a generated project where the rest came from. */
-const current = fs.readFileSync(AGENTS, 'utf8');
-const at = current.search(/^## 1\. The model in one paragraph$/m);
-if (at === -1) {
-  console.error(`generate-agents: AGENTS.md has no "${GUIDE_HEADING}" heading on a line of its own.`);
-  console.error('  That heading is where this repository\'s own half ends and the mirror begins;');
-  console.error('  without it there is no way to tell which part may be rewritten.');
+  const agentsNow = fs.readFileSync(path.join(ROOT, 'AGENTS.md'), 'utf8');
+  const guideFile = path.join(ROOT, TEMPLATE_GUIDE_FILE);
+  const guideNow = fs.existsSync(guideFile) ? fs.readFileSync(guideFile, 'utf8') : null;
+  let agentsNext;
+  let guideNext;
+  try {
+    const body = applyGuideDeviations(guideBody(guide));
+    guideNext = renderGuideFile(body);
+    agentsNext = replaceEssentials(agentsNow, renderEssentials(body));
+  } catch (err) {
+    console.error(`generate-agents: ${err.message}`);
+    console.error(`  read from ${from}`);
+    console.error('  see scripts/app-guide-deviations.mjs — and note that it is a SHARED file:');
+    console.error('  change abap2UI5\'s .github/shared/app-guide-deviations.mjs and copy it here.');
+    console.error('  AGENTS.md needs the two guide-essentials marker lines that file declares.');
+    process.exit(1);
+  }
+
+  const stale = [
+    ['AGENTS.md', agentsNow, agentsNext],
+    [TEMPLATE_GUIDE_FILE, guideNow, guideNext],
+  ].filter(([, now, next]) => now !== next);
+  if (!stale.length) {
+    console.log(`generate-agents: the guide file and the essentials in AGENTS.md match the guide (read from ${from}) - OK`);
+    return;
+  }
+  if (!CHECK) {
+    for (const [file, , next] of stale) {
+      fs.mkdirSync(path.dirname(path.join(ROOT, file)), { recursive: true });
+      fs.writeFileSync(path.join(ROOT, file), next);
+      console.log(`generate-agents: ${file} rewritten from ${SOURCE} (read from ${from})`);
+    }
+    return;
+  }
+  for (const [file, now, next] of stale) {
+    console.error(`generate-agents: ${file} is ${now === null ? 'missing' : 'out of date'}.`);
+    if (now !== null) console.error(`  ${firstDifference(now, next)}`);
+  }
+  console.error(`\n  The guide is abap2UI5's ${SOURCE} (read from ${from}).`);
+  /* `node …`, not `npm run …`: this file is templateOwn, and a script in the
+   * SHARED package.json may only invoke a file a generated project receives -
+   * the rule template.json states for rename.mjs and check-template.mjs enforces. */
+  console.error('  Run `node scripts/generate-agents.mjs` to take it, or - if the change belongs');
+  console.error('  in the guide - make it there first.');
+  console.error('  Editing the generated text by hand is what this replaced.');
   process.exit(1);
 }
-const own = current.slice(0, at);
 
-let mirrored;
-try {
-  mirrored = applyGuideDeviations(guideBody(guide));
-} catch (err) {
-  console.error(`generate-agents: ${err.message}`);
-  console.error(`  read from ${from}`);
-  console.error('  see scripts/app-guide-deviations.mjs — and note that it is a SHARED file:');
-  console.error('  change abap2UI5\'s .github/shared/app-guide-deviations.mjs and copy it here.');
-  process.exit(1);
-}
-
-/* One trailing newline, whatever the guide ends with: the guide is a page of a
- * documentation site and this is a repository's AGENTS.md, and a difference of
- * blank lines at the very end is not a difference either of them means. */
-const next = `${own}${mirrored.replace(/\s*$/, '')}\n`;
-
-if (next === current) {
-  console.log(`generate-agents: the mirrored half matches the guide (read from ${from}) - OK`);
-  process.exit(0);
-}
-
-if (!CHECK) {
-  fs.writeFileSync(AGENTS, next);
-  console.log(`generate-agents: AGENTS.md rewritten from ${SOURCE} (read from ${from})`);
-  process.exit(0);
-}
-
-/* Naming the first differing line is the difference between a report somebody
- * acts on and one somebody closes. Counted from the top of AGENTS.md, because
- * that is the file a reader has open. */
-const a = current.split('\n');
-const b = next.split('\n');
-const line = a.findIndex((l, i) => l !== b[i]);
-console.error('generate-agents: the mirrored half of AGENTS.md is out of date.');
-console.error(line === -1
-  ? `  same first ${Math.min(a.length, b.length)} line(s), then one version ends`
-  : `  first difference at AGENTS.md line ${line + 1}\n`
-    + `    here:      ${JSON.stringify(a[line] ?? '<end of file>')}\n`
-    + `    the guide: ${JSON.stringify(b[line] ?? '<end of file>')}`);
-console.error(`\n  The guide is abap2UI5's ${SOURCE} (read from ${from}).`);
-/* `node …`, not `npm run …`: this file is templateOwn, and a script in the
- * SHARED package.json may only invoke a file a generated project receives -
- * the rule template.json states for rename.mjs and check-template.mjs enforces.
- * An `agents` script here would be the fourth of the three that were removed
- * once a generated project's first push tripped over them. */
-console.error('  Run `node scripts/generate-agents.mjs` to take it, or - if the change belongs');
-console.error('  in the guide - make it there first.');
-console.error('  Editing the mirrored half by hand is what this replaced.');
-process.exit(1);
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) await main();
