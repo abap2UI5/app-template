@@ -43,6 +43,26 @@ npm run add-addon -- popups     # the app calls an addon class: register the add
 - Without a system the gates are all there is: say which ran. Deploy with
   [abapGit](https://abapgit.org/), start with `<endpoint>?app_start=zcl_app_001`.
 
+## The MCP server — use it when it is connected
+
+`.mcp.json` registers the [abap2UI5 MCP server](https://github.com/abap2UI5/mcp-server)
+(`.claude/settings.json` pre-approves it for Claude Code). When its tools are
+in your tool list, they answer from the framework, the samples and the docs
+as they are today — prefer them over what you remember:
+
+- **First:** `setup_status` — what resolves, what is built, what is missing.
+- **Before writing:** `capabilities` (can abap2UI5 express this at all?),
+  `examples` + `read_example` (a working app that already does it),
+  `api_reference` (the client API, instead of guessing a method), `addons`
+  (does an add-on already do it?), `app_guide` and `docs_search`.
+- **After every view change:** `validate_view` (and `fix_view`), next to
+  `npm run check`.
+- **Running it without a system:** `deploy_app` → `build_backend` →
+  `run_app` / `screenshot_view`, then `app_act` to click through it.
+
+Not connected? Everything here still works without it — the guide, the skills
+and the gates are all in this repository.
+
 ## What to read when
 
 | Doing | Read |
