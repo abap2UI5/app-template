@@ -1,0 +1,38 @@
+name: Bug report
+description: Something in this template is wrong - a gate, a script, the agent setup, the starter app
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A bug of the abap2UI5 framework itself belongs in abap2UI5/abap2UI5. Drafted by an AI assistant?
+        The MCP server's `report_issue` tool fills this form in - read it before you submit. Its field ids
+        (description, reproduction, version, environment, context) are what it fills; keep them.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: The command or file, what it did - and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: The commands from a fresh copy of the template (npm ci, npm run check, ...), or the smallest class that shows it.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The template commit, or the framework pin in abaplint.jsonc.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node version, created with npm create abap2ui5-app or "Use this template".
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: npm run doctor output, and whether an AI assistant found it (which one).

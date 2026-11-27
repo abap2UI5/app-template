@@ -69,7 +69,8 @@
       "scripts/generate-skills.mjs": "mirrors the framework's four agent skills into .claude/skills/ here in their split form (a short SKILL.md and its references), with declared deviations, and keeps this file's lists of them; a project has the files, not the generator",
       "create": "the `create-abap2ui5-app` npm package - `npm create abap2ui5-app` - which reads THIS template.json and writes a project; a project is what it produces, not what it contains. Published by .github/workflows/publish-create.yml",
       ".github/workflows/publish-create.yml": "manual-dispatch publish of create/ to npm, with this repository's NPM_TOKEN; a project has no package to publish",
-      ".github/workflows/sync-shared.yaml": "monthly maintenance of the TEMPLATE's copies of abap2UI5's shared files (.github/scripts/rename.mjs), pulled by the manifest abap2UI5's shared-file-gate.mjs keeps for THIS repository and opened as a PR here; a project is not in that manifest and takes a newer copy from the template's `main`"
+      ".github/workflows/sync-shared.yaml": "monthly maintenance of the TEMPLATE's copies of abap2UI5's shared files (.github/scripts/rename.mjs), pulled by the manifest abap2UI5's shared-file-gate.mjs keeps for THIS repository and opened as a PR here; a project is not in that manifest and takes a newer copy from the template's `main`",
+      ".github/ISSUE_TEMPLATE": "the issue forms of the TEMPLATE repository (a bug of a gate, a script, the agent setup); a project made from it files its own issues, and a framework bug goes to abap2UI5/abap2UI5. The field ids are the ones the MCP server's report_issue fills"
     }
   },
   "substitutions": {
