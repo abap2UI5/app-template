@@ -8,13 +8,15 @@
 that is accepted and no longer evaluated) and **`non-released-api`** (naming
 anything outside `src/02`).
 
-One more lands in 0.2.0, and it is the sharpest case of this whole file: a
-class that BUILDS its view with the frozen `z2ui5_cl_xml_view` used to be
-skipped by the linter entirely — the run ended with `no checkable app classes`
-and exit 0, which reads like approval while nothing had been looked at.
-**`frozen-view-builder`** reports it instead. Not pinned here yet; this
-repository's `src/99` will need it excluded when it is, since that package IS
-the frozen legacy.
+The sharpest case of this whole file was a class that BUILDS its view with
+the frozen `z2ui5_cl_xml_view`: the linter skipped it entirely — the run ended
+with `no checkable app classes` and exit 0, which reads like approval while
+nothing had been looked at. **`frozen-view-builder`** reports it (0.2.0), and
+from 0.13.0 on that is no longer its only finding: such a class is judged by
+every rule that needs no view — the `obsolete-*` and lifecycle rules included
+— and **`removed-api`** reports a name the framework removed (an error) or
+moved (a warning), with the release and what to write instead. No view rule
+runs on it still: `page( )` and `button( )` are not reconstructed.
 
 The rest needs a running system with real data and is written down here
 precisely because no gate will catch it.
@@ -269,7 +271,7 @@ for a path it cannot place (`z2ui5_cl_ui5_srv_model=>json_fast_set`,
 - **The second half (same day): a namespaced COLUMN of a bound table.** A
   table row carried the key `"/CWM/XCWMAT"`, and the row template's
   `{/CWM/XCWMAT}` is an ABSOLUTE path in UI5 - an empty cell, and the edit
-  went nowhere, without an error anywhere (S5S, /KRO/ EWM apps over
+  went nowhere, without an error anywhere (a consumer's apps over
   /SCWM/ tables). The model now writes a namespace as a level of its row,
   `"CWM":{"XCWMAT":...}` - on the fast path (`json_row_ns`) and on the
   general road, where ajson cannot address a node named `/CWM/XCWMAT`
@@ -282,7 +284,7 @@ for a path it cannot place (`z2ui5_cl_ui5_srv_model=>json_fast_set`,
   `cl_abap_structdescr=>create( )`: no typed declaration can carry such a
   name.
 
-### Two a clean-up pass broke in a downstream app (S5S, 2026-11-25)
+### Two a clean-up pass broke in a downstream app (2026-11-25)
 
 - **A guard before FOR ALL ENTRIES changes what the statement returns.**
   `SELECT … FOR ALL ENTRIES IN itab` over an EMPTY `itab` ignores the whole

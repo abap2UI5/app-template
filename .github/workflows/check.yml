@@ -101,7 +101,7 @@ jobs:
       # build/screenshots` (photographs every checked view, for an
       # upload-artifact step to publish - it runs even when the check failed).
       - name: abap2UI5-linter (property gate + headless render)
-        uses: abap2UI5/linter@2e084670c4442055cd18b74fccde3c2288c1d0e0 # v0.11.1
+        uses: abap2UI5/linter@927aa0c08c98b6216bc6def36fa47c9f860cb5c4 # v0.13.0
 
       # The same report as markdown on the run's own page - property gate only,
       # since the step above already decided whether the views load. This one
