@@ -14,8 +14,12 @@
 #
 # One-time setup: on npmjs.com create a granular access token with publish
 # rights on `create-abap2ui5-app` (or on the org, before the first publish)
-# and store it as the repository secret NPM_TOKEN. `--provenance` links the
-# published tarball to this run; it needs `id-token: write` below.
+# and store it as the secret NPM_TOKEN of the environment `release`
+# (Settings > Environments) - not as a repository secret. The job runs in
+# that environment and only from main: the environment's deployment branch
+# rule (main only) and its required reviewers are what stand between a
+# dispatch and npm. `--provenance` links the published tarball to this run;
+# it needs `id-token: write` below.
 #
 # Bump `version` in create/package.json before dispatching: npm refuses to
 # publish a version that is already up there, and the run says so.
@@ -26,14 +30,21 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   publish:
+    # a dispatch from any other branch would publish that branch's create/
+    if: github.ref == 'refs/heads/main'
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
